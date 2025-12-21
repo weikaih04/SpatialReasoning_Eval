@@ -14,16 +14,24 @@ cd VLMEvalKit_Thinkmorph
 
 ### 2. Install Dependencies
 
+```
 pip install -r requirements.txt
+```
 
 ### 3. Install ThinkMorph Dependencies
 
 Make sure you have the necessary dependencies for ThinkMorph
 
 
-## Model Configuration
+## Quick Start
 
-Edit the model configuration in [`vlmeval/config.py`](vlmeval/config.py):
+1️⃣ Configure API Keys
+
+```
+export OPENAI_API_KEY="your_api_key_here"
+```
+
+2️⃣ Edit the model configuration in [`vlmeval/config.py`](vlmeval/config.py):
 ```
 thinkmorph_series = {
     "thinkmorph": partial(
@@ -37,12 +45,6 @@ thinkmorph_series = {
     ),
 }
 ```
-
-## Quick Start
-
-1️⃣ Configure API Keys
-
-export OPENAI_API_KEY="your_api_key_here"
 
 2️⃣ Choose the benchmark you wanna eval, and run.
 
