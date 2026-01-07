@@ -28,7 +28,7 @@ class ThinkMorph(BaseModel):
     INSTALL_REQ = False
     INTERLEAVE = True
 
-    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, **kwargs):
+    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, num_timesteps=50, image_resolution=1024, **kwargs):
         # self.check_install()
         assert model_path is not None
         if not understanding_output:
@@ -39,6 +39,8 @@ class ThinkMorph(BaseModel):
         self.think = think
         self.temperature = temperature
         self.max_think_token_n = max_think_token_n
+        self.num_timesteps = num_timesteps
+        self.image_resolution = image_resolution
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
@@ -77,7 +79,8 @@ class ThinkMorph(BaseModel):
         tokenizer, new_token_ids, _ = add_special_tokens(tokenizer)
 
         # transforms
-        vae_transform = ImageTransform(1024, 512, 16)
+        # Use image_resolution parameter for VAE transform
+        vae_transform = ImageTransform(self.image_resolution, self.image_resolution // 2, 16)
         vit_transform = ImageTransform(980, 224, 14)
 
         # device map
@@ -177,10 +180,11 @@ class ThinkMorph(BaseModel):
                 cfg_img_scale=2.0,
                 cfg_interval=[0.0, 1.0],
                 timestep_shift=3.0,
-                num_timesteps=50,
+                num_timesteps=self.num_timesteps,
                 cfg_renorm_min=0.0,
                 cfg_renorm_type="text_channel",
                 max_rounds=1,  # Only generate one intermediate thought image
+                image_shapes=(self.image_resolution, self.image_resolution),
             )
 
         self.inference_hyper = inference_hyper
@@ -219,14 +223,14 @@ class ThinkMorph(BaseModel):
         input_list = images + [final_text]
         return input_list
     
-    def generate_inner(self, message, dataset=None):
+    def generate_inner(self, message, dataset=None, sample_index=None):
         input_list = self.build_thinkmorph_input(message)
 
         if self.understanding_output:
-            output_dict = self.inferencer(input_list=input_list, think=self.think, 
+            output_dict = self.inferencer(input_list=input_list, think=self.think,
                                         understanding_output=True, **self.inference_hyper)
             final_output = output_dict[0]
-            
+
         else:
             output_list = self.inferencer(input_list=input_list, think=self.think, **self.inference_hyper)
             results = []
@@ -238,7 +242,11 @@ class ThinkMorph(BaseModel):
                     results.append(out_item)
                     text_round += 1
                 elif isinstance(out_item, Image.Image):
-                    out_img_path = os.path.join(self.save_dir, f"thinkmorph_out_{uuid.uuid4().hex[:8]}_{idx}.jpg")
+                    # Use sample_index if available for deterministic filenames
+                    if sample_index is not None:
+                        out_img_path = os.path.join(self.save_dir, f"thinkmorph_out_sample{sample_index:04d}_{idx}.jpg")
+                    else:
+                        out_img_path = os.path.join(self.save_dir, f"thinkmorph_out_{uuid.uuid4().hex[:8]}_{idx}.jpg")
                     out_item.save(out_img_path)
                     results.append(f"[Image: {out_img_path}]")
 

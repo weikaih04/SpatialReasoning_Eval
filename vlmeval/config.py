@@ -1400,25 +1400,61 @@ thinkmorph_series = {
         max_think_token_n=4096,
         save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_base"
     ),
-    # Path Tracing finetuned model
-    "thinkmorph_pat": partial(
+    # Path Tracing finetuned model - Ablation 1: Default (1024x1024, 50 steps)
+    "thinkmorph_pat_ablation1": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0003040",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_3040"
+        num_timesteps=50,
+        image_resolution=1024,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation1_1024_50steps"
+    ),
+    # Path Tracing finetuned model - Ablation 2: Lower resolution + fewer steps (512x512, 25 steps)
+    "thinkmorph_pat_ablation2": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        num_timesteps=25,
+        image_resolution=512,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation2_512_25steps"
+    ),
+    # Path Tracing finetuned model - Ablation 3: Lower resolution only (512x512, 50 steps)
+    "thinkmorph_pat_ablation3": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        num_timesteps=50,
+        image_resolution=512,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation3_512_50steps"
+    ),
+    # Path Tracing finetuned model (original config for backward compatibility)
+    "thinkmorph_pat": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_6840"
     ),
     # Perspective Taking finetuned model
     "thinkmorph_pet": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pet/0003040",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pet/0004940",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_3040"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_4940"
     ),
 }
 

@@ -158,13 +158,13 @@ def infer_data(model, model_name, work_dir, dataset, out_file, verbose=False, ap
         if os.environ.get('SKIP_ERR', False) == '1':
             FAIL_MSG = 'Failed to obtain answer'
             try:
-                response = model.generate(message=struct, dataset=dataset_name)
+                response = model.generate(message=struct, dataset=dataset_name, sample_index=idx)
             except RuntimeError as err:
                 torch.cuda.synchronize()
                 warnings.warn(f'{type(err)} {str(err)}')
                 response = f'{FAIL_MSG}: {type(err)} {str(err)}'
         else:
-            response = model.generate(message=struct, dataset=dataset_name)
+            response = model.generate(message=struct, dataset=dataset_name, sample_index=idx)
         torch.cuda.empty_cache()
 
         if verbose:

@@ -212,6 +212,12 @@ ai2thor_dataset = {
     'AI2ThorPerspective_NoArrow_10': partial(AI2ThorPerspective_NoArrow, dataset='AI2ThorPerspective_NoArrow', nsamples=10),
 }
 
+# SAT Circular dataset with sample limits
+from .sat_circular_limited import SATCircularLimited
+sat_circular_dataset = {
+    'SAT_circular_10': partial(SATCircularLimited, dataset='SAT_circular', nsamples=10),
+}
+
 supported_video_datasets = {}
 
 dataset_groups = [
@@ -219,7 +225,7 @@ dataset_groups = [
     mlvu_dataset, tempcompass_dataset, cgbench_dataset, worldsense_dataset, tamperbench_dataset,
     megabench_dataset, qbench_video_dataset, moviechat1k_dataset, vdc_dataset, video_holmes_dataset, vcrbench_dataset,
     cg_av_counting_dataset, video_mmlu_dataset, egoexobench_dataset, dream_1k_dataset, video_tt_dataset,
-    vsibench_dataset, ai2thor_dataset
+    vsibench_dataset, ai2thor_dataset, sat_circular_dataset
 ]
 
 for grp in dataset_groups:

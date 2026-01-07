@@ -462,7 +462,9 @@ def main():
                         proxy_set(eval_proxy)
 
                     # Perform the Evaluation
-                    eval_results = dataset.evaluate(result_file, **judge_kwargs)
+                    # Use the actual dataset name from the dataset object, not the config name
+                    actual_result_file = osp.join(pred_root, f'{model_name}_{dataset.dataset_name}.{pred_format}')
+                    eval_results = dataset.evaluate(actual_result_file, **judge_kwargs)
                     # Display Evaluation Results in Terminal
                     if eval_results is not None:
                         assert isinstance(eval_results, dict) or isinstance(eval_results, pd.DataFrame)

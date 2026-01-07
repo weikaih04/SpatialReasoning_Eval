@@ -43,7 +43,7 @@ class BaseModel:
         return self.dump_image_func(line)
 
     @abstractmethod
-    def generate_inner(self, message, dataset=None):
+    def generate_inner(self, message, dataset=None, sample_index=None):
         raise NotImplementedError
 
     def check_content(self, msgs):
@@ -98,12 +98,13 @@ class BaseModel:
         else:
             return None
 
-    def generate(self, message, dataset=None):
+    def generate(self, message, dataset=None, sample_index=None):
         """Generate the output message.
 
         Args:
             message (list[dict]): The input message.
             dataset (str, optional): The name of the dataset. Defaults to None.
+            sample_index (int, optional): The index of the sample. Defaults to None.
 
         Returns:
             str: The generated message.
@@ -113,7 +114,7 @@ class BaseModel:
         assert message is not None and self.check_content(message) == 'listdict'
         for item in message:
             assert item['type'] in self.allowed_types, f'Invalid input type: {item["type"]}'
-        return self.generate_inner(message, dataset)
+        return self.generate_inner(message, dataset, sample_index=sample_index)
 
     def chat(self, messages, dataset=None):
         """The main function for multi-turn chatting. Will call `chat_inner` with the preprocessed input messages."""
