@@ -57,6 +57,7 @@ from .vcrbench import VCRBench
 from .gobench import GOBenchDataset
 from .sfebench import SFE
 from .visfactor import VisFactor
+from .ai2thor_spatial import AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow
 from .ost_bench import OSTDataset
 from .videommmu import VideoMMMU
 from .vsibench import VSIBench
@@ -230,7 +231,8 @@ IMAGE_DATASET = [
     AyaVisionBench, TopViewRS, VLMBias, MMHELIX, MedqbenchMCQDataset, MathCanvas, MMReason,
     MedqbenchPairedDescriptionDataset, MedqbenchCaptionDataset, ChartMuseum, ChartQAPro, ReasonMap_Plus,
     olmOCRBench, OceanOCRBench, MATBench, VLRMBench, RefCOCODataset, SimpleVQA, HiPhODataset, MaCBench,
-    UniSVG, SArena_MINI
+    UniSVG, SArena_MINI,
+    AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow
 ]
 
 VIDEO_DATASET = [

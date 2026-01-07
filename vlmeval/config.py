@@ -1370,6 +1370,56 @@ janus_series = {
 
 thinkmorph_series = {
     "thinkmorph": partial(ThinkMorph, model_path="ThinkMorph/ThinkMorph-7B", think=True, understanding_output=False, temperature=0.3, max_think_token_n=4096, save_dir = "path_to_your_imgs_dir"),
+    # Local checkpoints for comparison
+    "thinkmorph_local": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/ThinkMorph-7B",
+        think=True,
+        understanding_output=False,  # Enable visualization
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph"
+    ),
+    "bagel_mot": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/BAGEL-7B-MoT",
+        think=True,
+        understanding_output=False,  # Enable visualization
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/bagel_mot"
+    ),
+    # ========== Test models for AI2Thor spatial tasks ==========
+    # Base ThinkMorph-7B model
+    "thinkmorph_base": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/ThinkMorph-7B",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_base"
+    ),
+    # Path Tracing finetuned model
+    "thinkmorph_pat": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0003040",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_3040"
+    ),
+    # Perspective Taking finetuned model
+    "thinkmorph_pet": partial(
+        ThinkMorph,
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pet/0003040",
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_3040"
+    ),
 }
 
 cogvlm_series = {

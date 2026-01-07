@@ -206,6 +206,12 @@ dream_1k_dataset = {
     'DREAM-1K_0.5fps': partial(DREAM, dataset='DREAM-1K', fps=0.5),
 }
 
+# AI2Thor spatial reasoning datasets with sample limits
+ai2thor_dataset = {
+    'AI2ThorPathTracing_10': partial(AI2ThorPathTracing, dataset='AI2ThorPathTracing', nsamples=10),
+    'AI2ThorPerspective_NoArrow_10': partial(AI2ThorPerspective_NoArrow, dataset='AI2ThorPerspective_NoArrow', nsamples=10),
+}
+
 supported_video_datasets = {}
 
 dataset_groups = [
@@ -213,7 +219,7 @@ dataset_groups = [
     mlvu_dataset, tempcompass_dataset, cgbench_dataset, worldsense_dataset, tamperbench_dataset,
     megabench_dataset, qbench_video_dataset, moviechat1k_dataset, vdc_dataset, video_holmes_dataset, vcrbench_dataset,
     cg_av_counting_dataset, video_mmlu_dataset, egoexobench_dataset, dream_1k_dataset, video_tt_dataset,
-    vsibench_dataset
+    vsibench_dataset, ai2thor_dataset
 ]
 
 for grp in dataset_groups:

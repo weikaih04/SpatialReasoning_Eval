@@ -111,9 +111,25 @@ class ThinkMorph(BaseModel):
                 if k in device_map:
                     device_map[k] = first_device
 
+        # Support both single file and sharded checkpoints
+        single_ckpt = os.path.join(model_path, "model.safetensors")
+        ema_ckpt = os.path.join(model_path, "ema.safetensors")
+        sharded_index = os.path.join(model_path, "model.safetensors.index.json")
+
+        if os.path.exists(single_ckpt):
+            checkpoint = single_ckpt
+        elif os.path.exists(ema_ckpt):
+            # For BAGEL-7B-MoT style models that use ema.safetensors
+            checkpoint = ema_ckpt
+        elif os.path.exists(sharded_index):
+            checkpoint = sharded_index
+        else:
+            # Fall back to model_path directory for sharded checkpoints
+            checkpoint = model_path
+
         model = load_checkpoint_and_dispatch(
             model,
-            checkpoint=os.path.join(model_path, "model.safetensors"),
+            checkpoint=checkpoint,
             device_map=device_map,
             offload_buffers=True,
             dtype=torch.bfloat16,
@@ -164,6 +180,7 @@ class ThinkMorph(BaseModel):
                 num_timesteps=50,
                 cfg_renorm_min=0.0,
                 cfg_renorm_type="text_channel",
+                max_rounds=1,  # Only generate one intermediate thought image
             )
 
         self.inference_hyper = inference_hyper
