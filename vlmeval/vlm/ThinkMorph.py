@@ -190,12 +190,58 @@ class ThinkMorph(BaseModel):
         self.inference_hyper = inference_hyper
 
 
+    def use_custom_prompt(self, dataset):
+        """Use custom prompt for SAT perspective taking dataset."""
+        if dataset is not None and 'SAT_perspective' in dataset:
+            return True
+        return False
+
+    def build_prompt(self, line, dataset=None):
+        """Build custom prompt for SAT perspective taking dataset."""
+        import string
+        import pandas as pd
+
+        if not self.use_custom_prompt(dataset):
+            return None
+
+        # Build prompt for SAT perspective taking
+        tgt_path = self.dump_image(line, dataset)
+        question = line['question']
+
+        # Get options
+        options = {
+            cand: line[cand]
+            for cand in string.ascii_uppercase
+            if cand in line and not pd.isna(line[cand])
+        }
+
+        # Build options prompt
+        options_prompt = 'Options:\n'
+        for key, item in options.items():
+            options_prompt += f'{key}. {item}\n'
+
+        # Add special instruction for perspective taking - guide model to generate image directly
+        prompt = f'Question: {question}\n'
+        if len(options):
+            prompt += options_prompt
+        prompt += '\nThis is a spatial perspective question. You MUST generate a thinking image to visualize the scene from the new viewpoint. Do NOT write any text at all - only generate the image using <image_start> </image_end> tags, then immediately provide your answer in <answer></answer> tags. No text thinking allowed.\n'
+
+        # Build message
+        msgs = []
+        if isinstance(tgt_path, list):
+            msgs.extend([dict(type='image', value=p) for p in tgt_path])
+        else:
+            msgs = [dict(type='image', value=tgt_path)]
+        msgs.append(dict(type='text', value=prompt))
+
+        return msgs
+
     def build_thinkmorph_input(self, message):
         # according to https://github.com/ByteDance-Seed/Bagel/issues/83
 
         images = []
         text_parts = []
-        image_counter = 1  
+        image_counter = 1
 
         for m in message:
             if m['type'] == 'image':
@@ -206,7 +252,7 @@ class ThinkMorph(BaseModel):
                     img = val
                 else:
                     raise TypeError(f"Unsupported image input type {type(val)}")
-                
+
                 images.append(img)
                 text_parts.append(f"<img><|image_{image_counter}|></img>")
                 image_counter += 1

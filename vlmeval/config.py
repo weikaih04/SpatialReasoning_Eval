@@ -1439,12 +1439,12 @@ thinkmorph_series = {
     # Path Tracing finetuned model (original config for backward compatibility)
     "thinkmorph_pat": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0012920",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_6840"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_12920"
     ),
     # Perspective Taking finetuned model
     "thinkmorph_pet": partial(
@@ -1454,7 +1454,7 @@ thinkmorph_series = {
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_4940"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_4940_sat_pet_10"
     ),
 }
 

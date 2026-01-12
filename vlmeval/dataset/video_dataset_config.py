@@ -213,9 +213,10 @@ ai2thor_dataset = {
 }
 
 # SAT Circular dataset with sample limits
-from .sat_circular_limited import SATCircularLimited
+from .sat_circular_limited import SATCircularLimited, SATPerspectiveTaking
 sat_circular_dataset = {
     'SAT_circular_10': partial(SATCircularLimited, dataset='SAT_circular', nsamples=10),
+    'SAT_perspective_10': partial(SATPerspectiveTaking, dataset='SAT_perspective', nsamples=10),
 }
 
 supported_video_datasets = {}

@@ -58,7 +58,7 @@ from .gobench import GOBenchDataset
 from .sfebench import SFE
 from .visfactor import VisFactor
 from .ai2thor_spatial import AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow
-from .sat_circular_limited import SATCircularLimited
+from .sat_circular_limited import SATCircularLimited, SATPerspectiveTaking
 from .ost_bench import OSTDataset
 from .videommmu import VideoMMMU
 from .vsibench import VSIBench
@@ -234,7 +234,7 @@ IMAGE_DATASET = [
     olmOCRBench, OceanOCRBench, MATBench, VLRMBench, RefCOCODataset, SimpleVQA, HiPhODataset, MaCBench,
     UniSVG, SArena_MINI,
     AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow,
-    SATCircularLimited
+    SATCircularLimited, SATPerspectiveTaking
 ]
 
 VIDEO_DATASET = [
