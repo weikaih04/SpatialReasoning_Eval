@@ -1382,12 +1382,12 @@ thinkmorph_series = {
     ),
     "bagel_mot": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/BAGEL-7B-MoT",
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/BAGEL-7B-MoT"),
         think=True,
         understanding_output=False,  # Enable visualization
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/bagel_mot"
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/bagel_mot")
     ),
     # ========== Test models for AI2Thor spatial tasks ==========
     # Base ThinkMorph-7B model
@@ -1398,63 +1398,104 @@ thinkmorph_series = {
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_base"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/thinkmorph_base/visualizations"
     ),
-    # Path Tracing finetuned model - Ablation 1: Default (1024x1024, 50 steps)
+    # Path Tracing finetuned model - Ablation configs (kept for backward compatibility)
     "thinkmorph_pat_ablation1": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pat/run_20260106_8gpu/0006840",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
         num_timesteps=50,
         image_resolution=1024,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation1_1024_50steps"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pat/ablation1_1024_50steps"
     ),
-    # Path Tracing finetuned model - Ablation 2: Lower resolution + fewer steps (512x512, 25 steps)
     "thinkmorph_pat_ablation2": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pat/run_20260106_8gpu/0006840",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
         num_timesteps=25,
         image_resolution=512,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation2_512_25steps"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pat/ablation2_512_25steps"
     ),
-    # Path Tracing finetuned model - Ablation 3: Lower resolution only (512x512, 50 steps)
     "thinkmorph_pat_ablation3": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0006840",
+        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pat/run_20260106_8gpu/0006840",
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
         num_timesteps=50,
         image_resolution=512,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/ablation3_512_50steps"
+        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pat/ablation3_512_50steps"
     ),
-    # Path Tracing finetuned model (original config for backward compatibility)
+    # Path Tracing finetuned model - uses THINKMORPH_MODEL_PATH and THINKMORPH_SAVE_DIR env vars
+    # Set these in your evaluation yaml/script to dynamically specify checkpoint and output location
     "thinkmorph_pat": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pat/0012920",
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pat/run_20260106_8gpu/0006840"),
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pat_12920"
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pat/default")
     ),
-    # Perspective Taking finetuned model
+    # Perspective Taking finetuned model - uses THINKMORPH_MODEL_PATH, THINKMORPH_SAVE_DIR, THINKMORPH_IMAGE_RESOLUTION env vars
     "thinkmorph_pet": partial(
         ThinkMorph,
-        model_path="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt_pet/0004940",
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pet/run_20260106_8gpu/0004560"),
         think=True,
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
-        save_dir="/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_4940_sat_pet_10"
+        image_resolution=int(os.environ.get("THINKMORPH_IMAGE_RESOLUTION", 1024)),
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet/default")
+    ),
+    # Sideview (visual CoT description only) - uses THINKMORPH_MODEL_PATH and THINKMORPH_SAVE_DIR env vars
+    "thinkmorph_sideview": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/sideview/run_20260111_8gpu/0000380"),
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/sideview/default")
+    ),
+    # MMCOT (multi-choice QA with visual CoT) - uses THINKMORPH_MODEL_PATH and THINKMORPH_SAVE_DIR env vars
+    "thinkmorph_mmcot": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mmcot/run_20260111_8gpu/0000380"),
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mmcot/default")
+    ),
+    # Multi-View Counting - uses THINKMORPH_MODEL_PATH and THINKMORPH_SAVE_DIR env vars
+    "thinkmorph_mvc": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mvc/run_8gpu/0006840"),
+        think=True,
+        understanding_output=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc/default")
+    ),
+    # Perspective Taking NO THOUGHT baseline - text only, no image generation
+    "thinkmorph_pet_no_thought": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pet_no_thought/run_8gpu/0004000_full"),
+        think=False,
+        understanding_output=True,  # Text only, no image generation
+        visual_gen=False,  # Model trained without image generation capability
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet_no_thought/default")
     ),
 }
 

@@ -210,6 +210,7 @@ dream_1k_dataset = {
 ai2thor_dataset = {
     'AI2ThorPathTracing_10': partial(AI2ThorPathTracing, dataset='AI2ThorPathTracing', nsamples=10),
     'AI2ThorPerspective_NoArrow_10': partial(AI2ThorPerspective_NoArrow, dataset='AI2ThorPerspective_NoArrow', nsamples=10),
+    'SideviewOverfit_10': partial(SideviewOverfit, dataset='SideviewOverfit', nsamples=10),
 }
 
 # SAT Circular dataset with sample limits

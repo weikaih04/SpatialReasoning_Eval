@@ -28,7 +28,7 @@ class ThinkMorph(BaseModel):
     INSTALL_REQ = False
     INTERLEAVE = True
 
-    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, num_timesteps=50, image_resolution=1024, **kwargs):
+    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, num_timesteps=50, image_resolution=1024, visual_gen=True, **kwargs):
         # self.check_install()
         assert model_path is not None
         if not understanding_output:
@@ -41,6 +41,7 @@ class ThinkMorph(BaseModel):
         self.max_think_token_n = max_think_token_n
         self.num_timesteps = num_timesteps
         self.image_resolution = image_resolution
+        self.visual_gen = visual_gen
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
@@ -57,7 +58,7 @@ class ThinkMorph(BaseModel):
         vae_model, vae_config = load_ae(local_path=os.path.join(model_path, "ae.safetensors"))
 
         config = BagelConfig(
-            visual_gen=True,
+            visual_gen=visual_gen,
             visual_und=True,
             llm_config=llm_config,
             vit_config=vit_config,
@@ -93,13 +94,16 @@ class ThinkMorph(BaseModel):
 
         same_device_modules = [
             'language_model.model.embed_tokens',
-            'time_embedder',
-            'latent_pos_embed',
-            'vae2llm',
-            'llm2vae',
             'connector',
             'vit_pos_embed'
         ]
+        if visual_gen:
+            same_device_modules.extend([
+                'time_embedder',
+                'latent_pos_embed',
+                'vae2llm',
+                'llm2vae',
+            ])
 
         if torch.cuda.device_count() == 1:
             first_device = device_map.get(same_device_modules[0], "cuda:0")
@@ -122,14 +126,15 @@ class ThinkMorph(BaseModel):
         if os.path.exists(single_ckpt):
             checkpoint = single_ckpt
         elif os.path.exists(ema_ckpt):
-            # For BAGEL-7B-MoT style models that use ema.safetensors
             checkpoint = ema_ckpt
         elif os.path.exists(sharded_index):
             checkpoint = sharded_index
         else:
-            # Fall back to model_path directory for sharded checkpoints
             checkpoint = model_path
 
+        # Load checkpoint
+        import logging
+        logging.getLogger("accelerate.utils.modeling").setLevel(logging.WARNING)
         model = load_checkpoint_and_dispatch(
             model,
             checkpoint=checkpoint,
@@ -183,7 +188,7 @@ class ThinkMorph(BaseModel):
                 num_timesteps=self.num_timesteps,
                 cfg_renorm_min=0.0,
                 cfg_renorm_type="text_channel",
-                max_rounds=1,  # Only generate one intermediate thought image
+                max_rounds=1,  # Generate one intermediate thought image
                 image_shapes=(self.image_resolution, self.image_resolution),
             )
 
@@ -191,23 +196,37 @@ class ThinkMorph(BaseModel):
 
 
     def use_custom_prompt(self, dataset):
-        """Use custom prompt for SAT perspective taking dataset."""
+        """Use custom prompt for SAT perspective taking dataset and SideviewOverfit."""
         if dataset is not None and 'SAT_perspective' in dataset:
+            return True
+        if dataset is not None and 'SideviewOverfit' in dataset:
             return True
         return False
 
     def build_prompt(self, line, dataset=None):
-        """Build custom prompt for SAT perspective taking dataset."""
+        """Build custom prompt for SAT perspective taking dataset and SideviewOverfit."""
         import string
         import pandas as pd
 
         if not self.use_custom_prompt(dataset):
             return None
 
-        # Build prompt for SAT perspective taking
         tgt_path = self.dump_image(line, dataset)
         question = line['question']
 
+        # Special handling for SideviewOverfit - use original training instruction directly
+        if dataset is not None and 'SideviewOverfit' in dataset:
+            # The question already contains the full training instruction with system prompt
+            # Just use it directly without MCQ options
+            msgs = []
+            if isinstance(tgt_path, list):
+                msgs.extend([dict(type='image', value=p) for p in tgt_path])
+            else:
+                msgs = [dict(type='image', value=tgt_path)]
+            msgs.append(dict(type='text', value=question))
+            return msgs
+
+        # Build prompt for SAT perspective taking
         # Get options
         options = {
             cand: line[cand]

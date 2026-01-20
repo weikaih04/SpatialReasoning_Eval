@@ -1,7 +1,10 @@
 import base64
 import io
 import json
+import os
 import pandas as pd
+import pyarrow.parquet as pq
+from PIL import Image
 from .image_mcq import ImageMCQDataset
 
 
@@ -38,6 +41,10 @@ class AI2ThorPathTracing(ImageMCQDataset):
 
         records = []
         for idx, ex in enumerate(hf_ds):
+            # Early exit if we have enough samples
+            if self.nsamples is not None and len(records) >= self.nsamples:
+                break
+
             # Convert topdown_image to base64
             img_b64 = pil_to_base64(ex['topdown_image'])
 
@@ -45,7 +52,7 @@ class AI2ThorPathTracing(ImageMCQDataset):
             choices = ex['choices']
 
             records.append({
-                'index': idx,
+                'index': len(records),
                 'image': img_b64,
                 'question': ex['question'],
                 'A': choices[0] if len(choices) > 0 else '',
@@ -55,10 +62,7 @@ class AI2ThorPathTracing(ImageMCQDataset):
                 'answer': ex['answer'],
             })
 
-        df = pd.DataFrame(records)
-        if self.nsamples is not None:
-            df = df.head(self.nsamples)
-        return df
+        return pd.DataFrame(records)
 
 
 class AI2ThorPerspective_NoArrow(ImageMCQDataset):
@@ -86,9 +90,16 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
         hf_ds = load_dataset('weikaih/ai2thor-perspective-qa-800-balanced-val-v3')
 
         records = []
-        global_idx = 0
+        done = False
         for split_name in hf_ds.keys():
+            if done:
+                break
             for ex in hf_ds[split_name]:
+                # Early exit if we have enough samples
+                if self.nsamples is not None and len(records) >= self.nsamples:
+                    done = True
+                    break
+
                 # Convert marked_image_no_arrow to base64
                 img_b64 = pil_to_base64(ex['marked_image_no_arrow'])
 
@@ -100,7 +111,7 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
                     choices = choices_raw
 
                 records.append({
-                    'index': global_idx,
+                    'index': len(records),
                     'image': img_b64,
                     'question': ex['question_no_arrow'],
                     'A': choices[0] if len(choices) > 0 else '',
@@ -108,12 +119,8 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
                     'answer': ex['answer'],
                     'category': ex['question_type'],
                 })
-                global_idx += 1
 
-        df = pd.DataFrame(records)
-        if self.nsamples is not None:
-            df = df.head(self.nsamples)
-        return df
+        return pd.DataFrame(records)
 
 
 class AI2ThorPerspective_Arrow(ImageMCQDataset):
@@ -163,3 +170,222 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
 
         return pd.DataFrame(records)
 
+
+class SideviewOverfit(ImageMCQDataset):
+    """
+    Sideview Overfit Test Dataset.
+    Loads first N samples from sideview training parquet data to test if model can reproduce training samples.
+    Uses original training instruction directly (no MCQ format).
+    ThinkMorph.py has special handling to use the question field as-is.
+    """
+
+    TYPE = 'VQA'  # Not MCQ, but we still inherit from ImageMCQDataset for convenience
+
+    # Path to sideview training parquet data
+    PARQUET_DIR = '/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/bagel_example/editing/ai2thor-path-tracing-train-sideview-only'
+
+    def __init__(self, dataset='SideviewOverfit', nsamples=10, **kwargs):
+        self.nsamples = nsamples
+        super().__init__(dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['SideviewOverfit']
+
+    def load_data(self, dataset):
+        # Find parquet files
+        parquet_files = sorted([f for f in os.listdir(self.PARQUET_DIR) if f.endswith('.parquet')])
+        if not parquet_files:
+            raise FileNotFoundError(f"No parquet files found in {self.PARQUET_DIR}")
+
+        records = []
+        samples_loaded = 0
+
+        for pq_file in parquet_files:
+            if samples_loaded >= self.nsamples:
+                break
+
+            pq_path = os.path.join(self.PARQUET_DIR, pq_file)
+            table = pq.read_table(pq_path)
+            df_pq = table.to_pandas()
+
+            for idx, row in df_pq.iterrows():
+                if samples_loaded >= self.nsamples:
+                    break
+
+                # Extract input image (first image in image_list)
+                image_list = row['image_list']
+                if len(image_list) == 0:
+                    continue
+
+                # Convert bytes to PIL Image then to base64
+                input_img_bytes = image_list[0]
+                pil_img = Image.open(io.BytesIO(input_img_bytes))
+                img_b64 = pil_to_base64(pil_img)
+
+                # Use full training instruction as question (includes system prompt)
+                instruction = row['instruction_list'][0] if len(row['instruction_list']) > 0 else ""
+
+                # Extract expected output text for reference
+                output_texts = row['output_text_list']
+                expected_text = ' '.join(output_texts) if len(output_texts) > 0 else ""
+
+                # No MCQ options - ThinkMorph.py will use instruction directly
+                records.append({
+                    'index': samples_loaded,
+                    'image': img_b64,
+                    'question': instruction,  # Full training instruction
+                    'answer': expected_text,  # Expected output for reference
+                })
+                samples_loaded += 1
+
+        return pd.DataFrame(records)
+
+
+class AI2ThorMultiViewCounting(ImageMCQDataset):
+    """
+    AI2Thor Multi-View Counting Dataset.
+    Source: weikaih/ai2thor-multiview-counting-val-800-v2-400
+    Multi-image input (3-5 frames per sample).
+    4-choice MCQ (A/B/C/D).
+
+    Splits:
+    - square: 200 samples with 4 fixed camera positions
+    - rotation: 200 samples with 3-5 rotation frames
+    """
+
+    TYPE = 'MCQ'
+
+    # Filter by trajectory type: None = all, 'square' or 'rotation'
+    TRAJECTORY_FILTER = None
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        super().__init__(dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting']
+
+    def load_data(self, dataset):
+        from datasets import load_dataset
+        import re
+
+        # Load from HuggingFace
+        hf_ds = load_dataset('weikaih/ai2thor-multiview-counting-val-800-v2-400', split='train')
+
+        records = []
+        for idx, ex in enumerate(hf_ds):
+            # Early exit if we have enough samples
+            if self.nsamples is not None and len(records) >= self.nsamples:
+                break
+
+            # Filter by trajectory type if specified
+            traj_id = ex.get('trajectory_id', '')
+            if self.TRAJECTORY_FILTER is not None:
+                if self.TRAJECTORY_FILTER == 'square' and 'square' not in traj_id.lower():
+                    continue
+                if self.TRAJECTORY_FILTER == 'rotation' and 'rotation' not in traj_id.lower():
+                    continue
+
+            # Collect all non-None frames
+            frames = []
+            for i in range(8):
+                frame = ex.get(f'frame_{i}')
+                if frame is not None:
+                    frames.append(frame)
+
+            if len(frames) == 0:
+                continue
+
+            # Convert frames to base64 (multi-image input)
+            img_b64_list = [pil_to_base64(f) for f in frames]
+
+            # Question already has choices formatted
+            question = ex['question']
+
+            # Parse choices from question if not separate
+            # Format: "How many X? A) 1 B) 2 C) 3 D) 4"
+            choices = ['', '', '', '']
+            choice_pattern = r'([A-D])\)\s*(\d+)'
+            matches = re.findall(choice_pattern, question)
+            for letter, value in matches:
+                idx_choice = ord(letter) - ord('A')
+                if 0 <= idx_choice < 4:
+                    choices[idx_choice] = value
+
+            records.append({
+                'index': len(records),
+                'image': img_b64_list,  # List of base64 for multi-image
+                'question': question,
+                'A': choices[0],
+                'B': choices[1],
+                'C': choices[2],
+                'D': choices[3],
+                'answer': ex['answer'],
+                'category': ex.get('movement_type', ''),
+                'query_object': ex.get('query_object', ''),
+            })
+
+        return pd.DataFrame(records)
+
+
+class AI2ThorMultiViewCounting_Square(AI2ThorMultiViewCounting):
+    """Multi-View Counting - Square trajectory only (4 fixed camera positions)."""
+
+    TRAJECTORY_FILTER = 'square'
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_Square', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        ImageMCQDataset.__init__(self, dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_Square']
+
+
+class AI2ThorMultiViewCounting_Rotation(AI2ThorMultiViewCounting):
+    """Multi-View Counting - Rotation trajectory only (3-5 rotation frames)."""
+
+    TRAJECTORY_FILTER = 'rotation'
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_Rotation', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        ImageMCQDataset.__init__(self, dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_Rotation']
+
+
+class AI2ThorMultiViewCounting_10(AI2ThorMultiViewCounting):
+    """Quick test version with only 10 samples."""
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_10']
+
+
+class AI2ThorMultiViewCounting_Square_10(AI2ThorMultiViewCounting_Square):
+    """Quick test version - Square only, 10 samples."""
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_Square_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_Square_10']
+
+
+class AI2ThorMultiViewCounting_Rotation_10(AI2ThorMultiViewCounting_Rotation):
+    """Quick test version - Rotation only, 10 samples."""
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_Rotation_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_Rotation_10']

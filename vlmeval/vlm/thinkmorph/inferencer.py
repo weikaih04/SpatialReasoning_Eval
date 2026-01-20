@@ -291,6 +291,12 @@ class InterleaveInferencer:
                     else:
                         break
 
+                # After loop: if last output is an image, generate final text for answer
+                if output_list and isinstance(output_list[-1], Image.Image):
+                    gen_text = self.gen_text(gen_context, do_sample=do_sample, temperature=text_temperature, max_length=max_think_token_n)
+                    output_list.append(gen_text)
+                    gen_context = self.update_context_text(gen_text, gen_context)
+
         return output_list
     
     def __call__(
