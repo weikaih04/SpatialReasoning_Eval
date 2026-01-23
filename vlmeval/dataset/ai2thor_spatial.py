@@ -71,6 +71,16 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
     Source: weikaih/ai2thor-perspective-qa-800-balanced-val-v3
     Uses marked_image_no_arrow and question_no_arrow.
     2-choice MCQ (A/B).
+
+    Categories (6 splits):
+    - distance_change_closer
+    - distance_change_further
+    - relative_position_left_left
+    - relative_position_left_right
+    - relative_position_right_left
+    - relative_position_right_right
+
+    Overall is computed as unweighted average of 6 category accuracies.
     """
 
     TYPE = 'MCQ'
@@ -78,6 +88,64 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
     def __init__(self, dataset='AI2ThorPerspective_NoArrow', nsamples=None, **kwargs):
         self.nsamples = nsamples
         super().__init__(dataset=dataset, **kwargs)
+
+    def evaluate(self, eval_file, **judge_kwargs):
+        """Custom evaluate that computes Overall as unweighted average of category accuracies."""
+        from collections import defaultdict
+        import numpy as np
+        from ..smp import load, dump
+        from .utils import build_judge
+
+        # First run the parent evaluation to get per-sample results
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Build judge for answer matching
+        judge_kwargs['model'] = judge_kwargs.get('model', 'exact_matching')
+
+        # Score each sample
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+                # Simple exact matching for A/B answers
+                hit = 1 if pred.strip().upper() == gt.strip().upper() else 0
+                # Also check if prediction contains the answer
+                if hit == 0 and gt.strip().upper() in pred.strip().upper():
+                    hit = 1
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        # Compute per-category accuracy
+        category_acc = {}
+        categories = data['category'].unique()
+
+        for cat in categories:
+            cat_data = data[data['category'] == cat]
+            acc = cat_data['hit'].mean() * 100  # Convert to percentage
+            category_acc[cat] = acc
+
+        # Compute Overall as unweighted average of category accuracies
+        overall_acc = np.mean(list(category_acc.values()))
+
+        # Build result DataFrame
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        for cat in sorted(categories):
+            cat_count = len(data[data['category'] == cat])
+            res['Category'].append(cat)
+            res['Accuracy'].append(category_acc[cat])
+            res['Count'].append(cat_count)
+
+        res_df = pd.DataFrame(res)
+
+        # Save results
+        score_file = eval_file.replace(f'.{suffix}', '_acc.csv')
+        dump(res_df, score_file)
+
+        return res_df
 
     @classmethod
     def supported_datasets(cls):
@@ -117,7 +185,7 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
                     'A': choices[0] if len(choices) > 0 else '',
                     'B': choices[1] if len(choices) > 1 else '',
                     'answer': ex['answer'],
-                    'category': ex['question_type'],
+                    'category': split_name,  # Use split name for 6-category breakdown
                 })
 
         return pd.DataFrame(records)
@@ -129,6 +197,16 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
     Source: weikaih/ai2thor-perspective-qa-800-balanced-val-v3
     Uses marked_image_with_arrow and question_with_arrow.
     2-choice MCQ (A/B).
+
+    Categories (6 splits):
+    - distance_change_closer
+    - distance_change_further
+    - relative_position_left_left
+    - relative_position_left_right
+    - relative_position_right_left
+    - relative_position_right_right
+
+    Overall is computed as unweighted average of 6 category accuracies.
     """
 
     TYPE = 'MCQ'
@@ -136,6 +214,54 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
     @classmethod
     def supported_datasets(cls):
         return ['AI2ThorPerspective_Arrow']
+
+    def evaluate(self, eval_file, **judge_kwargs):
+        """Custom evaluate that computes Overall as unweighted average of category accuracies."""
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+                hit = 1 if pred.strip().upper() == gt.strip().upper() else 0
+                if hit == 0 and gt.strip().upper() in pred.strip().upper():
+                    hit = 1
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        # Compute per-category accuracy
+        category_acc = {}
+        categories = data['category'].unique()
+
+        for cat in categories:
+            cat_data = data[data['category'] == cat]
+            acc = cat_data['hit'].mean() * 100
+            category_acc[cat] = acc
+
+        # Compute Overall as unweighted average of category accuracies
+        overall_acc = np.mean(list(category_acc.values()))
+
+        # Build result DataFrame
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        for cat in sorted(categories):
+            cat_count = len(data[data['category'] == cat])
+            res['Category'].append(cat)
+            res['Accuracy'].append(category_acc[cat])
+            res['Count'].append(cat_count)
+
+        res_df = pd.DataFrame(res)
+        score_file = eval_file.replace(f'.{suffix}', '_acc.csv')
+        dump(res_df, score_file)
+
+        return res_df
 
     def load_data(self, dataset):
         from datasets import load_dataset
@@ -164,7 +290,7 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
                     'A': choices[0] if len(choices) > 0 else '',
                     'B': choices[1] if len(choices) > 1 else '',
                     'answer': ex['answer'],
-                    'category': ex['question_type'],
+                    'category': split_name,  # Use split name for 6-category breakdown
                 })
                 global_idx += 1
 
