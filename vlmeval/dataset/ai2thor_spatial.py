@@ -111,10 +111,26 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-                # Simple exact matching for A/B answers
-                hit = 1 if pred.strip().upper() == gt.strip().upper() else 0
+
+                # Extract answer from <answer> tags if present
+                import re
+                answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
+                if answer_match:
+                    pred = answer_match.group(1)
+
+                # Convert predicted option letter (A/B) to actual answer text
+                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+                if pred_letter == 'A':
+                    pred_answer = str(item.get('A', ''))
+                elif pred_letter == 'B':
+                    pred_answer = str(item.get('B', ''))
+                else:
+                    pred_answer = pred  # fallback to original prediction
+
+                # Simple exact matching for answers
+                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
                 # Also check if prediction contains the answer
-                if hit == 0 and gt.strip().upper() in pred.strip().upper():
+                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
                     hit = 1
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
@@ -231,8 +247,18 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-                hit = 1 if pred.strip().upper() == gt.strip().upper() else 0
-                if hit == 0 and gt.strip().upper() in pred.strip().upper():
+
+                # Convert predicted option letter (A/B) to actual answer text
+                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+                if pred_letter == 'A':
+                    pred_answer = str(item.get('A', ''))
+                elif pred_letter == 'B':
+                    pred_answer = str(item.get('B', ''))
+                else:
+                    pred_answer = pred  # fallback to original prediction
+
+                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
+                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
                     hit = 1
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
@@ -515,3 +541,345 @@ class AI2ThorMultiViewCounting_Rotation_10(AI2ThorMultiViewCounting_Rotation):
     @classmethod
     def supported_datasets(cls):
         return ['AI2ThorMultiViewCounting_Rotation_10']
+
+
+class HabitatPerspective_NoArrow(ImageMCQDataset):
+    """
+    Habitat Perspective QA Dataset (No Arrow version).
+    Source: weikaih/habitat-perspective-qa
+    Uses marked_image_no_arrow and question_no_arrow.
+    2-choice MCQ (A/B).
+
+    Categories (6 splits):
+    - distance_closer
+    - distance_further
+    - position_left_left
+    - position_left_right
+    - position_right_left
+    - position_right_right
+
+    Total: 900 samples (150 per split)
+
+    Overall is computed as unweighted average of 6 category accuracies.
+    Used for cross-dataset generalization testing (trained on AI2Thor, tested on Habitat).
+    """
+
+    TYPE = 'MCQ'
+
+    def __init__(self, dataset='HabitatPerspective_NoArrow', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        super().__init__(dataset=dataset, **kwargs)
+
+    def evaluate(self, eval_file, **judge_kwargs):
+        """Custom evaluate that computes Overall as unweighted average of category accuracies."""
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+
+                # Extract answer from <answer> tags if present
+                import re
+                answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
+                if answer_match:
+                    pred = answer_match.group(1)
+
+                # Convert predicted option letter (A/B) to actual answer text
+                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+                if pred_letter == 'A':
+                    pred_answer = str(item.get('A', ''))
+                elif pred_letter == 'B':
+                    pred_answer = str(item.get('B', ''))
+                else:
+                    pred_answer = pred  # fallback to original prediction
+
+                # Simple exact matching for answers
+                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
+                # Also check if prediction contains the answer
+                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
+                    hit = 1
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        # Compute per-category accuracy
+        category_acc = {}
+        categories = data['category'].unique()
+
+        for cat in categories:
+            cat_data = data[data['category'] == cat]
+            acc = cat_data['hit'].mean() * 100  # Convert to percentage
+            category_acc[cat] = acc
+
+        # Compute Overall as unweighted average of category accuracies
+        overall_acc = np.mean(list(category_acc.values()))
+
+        # Build result DataFrame
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        for cat in sorted(categories):
+            cat_count = len(data[data['category'] == cat])
+            res['Category'].append(cat)
+            res['Accuracy'].append(category_acc[cat])
+            res['Count'].append(cat_count)
+
+        res_df = pd.DataFrame(res)
+
+        # Save results
+        score_file = eval_file.replace(f'.{suffix}', '_acc.csv')
+        dump(res_df, score_file)
+
+        return res_df
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_NoArrow']
+
+    def load_data(self, dataset):
+        from datasets import load_dataset
+
+        # Load all splits from HuggingFace
+        hf_ds = load_dataset('weikaih/habitat-perspective-qa')
+
+        records = []
+        done = False
+        for split_name in hf_ds.keys():
+            if done:
+                break
+            for ex in hf_ds[split_name]:
+                # Early exit if we have enough samples
+                if self.nsamples is not None and len(records) >= self.nsamples:
+                    done = True
+                    break
+
+                # Convert marked_image_no_arrow to base64
+                img_b64 = pil_to_base64(ex['marked_image_no_arrow'])
+
+                # Map answer_choices to A/B (answer_choices is a JSON string)
+                choices_raw = ex['answer_choices']
+                if isinstance(choices_raw, str):
+                    choices = json.loads(choices_raw)
+                else:
+                    choices = choices_raw
+
+                records.append({
+                    'index': len(records),
+                    'image': img_b64,
+                    'question': ex['question_no_arrow'],
+                    'A': choices[0] if len(choices) > 0 else '',
+                    'B': choices[1] if len(choices) > 1 else '',
+                    'answer': ex['answer'],
+                    'category': split_name,  # Use split name for 6-category breakdown
+                })
+
+        return pd.DataFrame(records)
+
+
+class HabitatPerspective_Arrow(ImageMCQDataset):
+    """
+    Habitat Perspective QA Dataset (With Arrow version).
+    Source: weikaih/habitat-perspective-qa
+    Uses marked_image_with_arrow and question_with_arrow.
+    2-choice MCQ (A/B).
+
+    Categories (6 splits):
+    - distance_closer
+    - distance_further
+    - position_left_left
+    - position_left_right
+    - position_right_left
+    - position_right_right
+
+    Total: 900 samples (150 per split)
+
+    Overall is computed as unweighted average of 6 category accuracies.
+    """
+
+    TYPE = 'MCQ'
+
+    def __init__(self, dataset='HabitatPerspective_Arrow', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        super().__init__(dataset=dataset, **kwargs)
+
+    def evaluate(self, eval_file, **judge_kwargs):
+        """Custom evaluate that computes Overall as unweighted average of category accuracies."""
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+
+                # Convert predicted option letter (A/B) to actual answer text
+                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+                if pred_letter == 'A':
+                    pred_answer = str(item.get('A', ''))
+                elif pred_letter == 'B':
+                    pred_answer = str(item.get('B', ''))
+                else:
+                    pred_answer = pred  # fallback to original prediction
+
+                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
+                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
+                    hit = 1
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        # Compute per-category accuracy
+        category_acc = {}
+        categories = data['category'].unique()
+
+        for cat in categories:
+            cat_data = data[data['category'] == cat]
+            acc = cat_data['hit'].mean() * 100
+            category_acc[cat] = acc
+
+        # Compute Overall as unweighted average of category accuracies
+        overall_acc = np.mean(list(category_acc.values()))
+
+        # Build result DataFrame
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        for cat in sorted(categories):
+            cat_count = len(data[data['category'] == cat])
+            res['Category'].append(cat)
+            res['Accuracy'].append(category_acc[cat])
+            res['Count'].append(cat_count)
+
+        res_df = pd.DataFrame(res)
+        score_file = eval_file.replace(f'.{suffix}', '_acc.csv')
+        dump(res_df, score_file)
+
+        return res_df
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_Arrow']
+
+    def load_data(self, dataset):
+        from datasets import load_dataset
+
+        # Load all splits from HuggingFace
+        hf_ds = load_dataset('weikaih/habitat-perspective-qa')
+
+        records = []
+        done = False
+        for split_name in hf_ds.keys():
+            if done:
+                break
+            for ex in hf_ds[split_name]:
+                if self.nsamples is not None and len(records) >= self.nsamples:
+                    done = True
+                    break
+
+                # Convert marked_image_with_arrow to base64
+                img_b64 = pil_to_base64(ex['marked_image_with_arrow'])
+
+                # Map answer_choices to A/B (answer_choices is a JSON string)
+                choices_raw = ex['answer_choices']
+                if isinstance(choices_raw, str):
+                    choices = json.loads(choices_raw)
+                else:
+                    choices = choices_raw
+
+                records.append({
+                    'index': len(records),
+                    'image': img_b64,
+                    'question': ex['question_with_arrow'],
+                    'A': choices[0] if len(choices) > 0 else '',
+                    'B': choices[1] if len(choices) > 1 else '',
+                    'answer': ex['answer'],
+                    'category': split_name,  # Use split name for 6-category breakdown
+                })
+
+        return pd.DataFrame(records)
+
+
+class HabitatPerspective_NoArrow_10(HabitatPerspective_NoArrow):
+    """Quick test version with only 10 samples."""
+
+    def __init__(self, dataset='HabitatPerspective_NoArrow_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_NoArrow_10']
+
+
+class HabitatPerspective_Arrow_10(HabitatPerspective_Arrow):
+    """Quick test version with only 10 samples."""
+
+    def __init__(self, dataset='HabitatPerspective_Arrow_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_Arrow_10']
+
+
+class HabitatPerspective_NoArrow_v2(HabitatPerspective_NoArrow):
+    """
+    Habitat Perspective QA Dataset v2 (No Arrow version).
+    Source: weikaih/habitat-perspective-qa-val-v2
+    Samples 40 per category = 240 total.
+    Uses marked_image_no_arrow and question_no_arrow.
+    2-choice MCQ (A/B).
+    """
+
+    SAMPLES_PER_CATEGORY = 40
+
+    def __init__(self, dataset='HabitatPerspective_NoArrow_v2', **kwargs):
+        super(HabitatPerspective_NoArrow, self).__init__(dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_NoArrow_v2']
+
+    def load_data(self, dataset):
+        import random
+        from datasets import load_dataset
+
+        hf_ds = load_dataset('weikaih/habitat-perspective-qa-val-v2')
+
+        records = []
+        for split_name in sorted(hf_ds.keys()):
+            split_data = list(hf_ds[split_name])
+            # Sample N per category (or take all if fewer available)
+            n = min(self.SAMPLES_PER_CATEGORY, len(split_data))
+            random.seed(42)
+            sampled = random.sample(split_data, n)
+
+            for ex in sampled:
+                img_b64 = pil_to_base64(ex['marked_image_no_arrow'])
+
+                choices_raw = ex['answer_choices']
+                if isinstance(choices_raw, str):
+                    choices = json.loads(choices_raw)
+                else:
+                    choices = choices_raw
+
+                records.append({
+                    'index': len(records),
+                    'image': img_b64,
+                    'question': ex['question_no_arrow'],
+                    'A': choices[0] if len(choices) > 0 else '',
+                    'B': choices[1] if len(choices) > 1 else '',
+                    'answer': ex['answer'],
+                    'category': split_name,
+                })
+
+        return pd.DataFrame(records)

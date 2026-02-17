@@ -1476,7 +1476,7 @@ thinkmorph_series = {
         max_think_token_n=4096,
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mmcot/default")
     ),
-    # Multi-View Counting - uses THINKMORPH_MODEL_PATH and THINKMORPH_SAVE_DIR env vars
+    # Multi-View Counting - uses THINKMORPH_MODEL_PATH, THINKMORPH_SAVE_DIR, THINKMORPH_IMAGE_RESOLUTION env vars
     "thinkmorph_mvc": partial(
         ThinkMorph,
         model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mvc/run_8gpu/0006840"),
@@ -1484,6 +1484,7 @@ thinkmorph_series = {
         understanding_output=False,
         temperature=0.3,
         max_think_token_n=4096,
+        image_resolution=int(os.environ.get("THINKMORPH_IMAGE_RESOLUTION", 1024)),
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc/default")
     ),
     # Perspective Taking NO THOUGHT baseline - text only, no image generation
@@ -1496,6 +1497,39 @@ thinkmorph_series = {
         temperature=0.3,
         max_think_token_n=4096,
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet_no_thought/default")
+    ),
+    # Perspective Taking TEXT COT - text CoT thinking, no image generation
+    "thinkmorph_pet_textcot": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pet_textcot/run_8gpu/0010000_full"),
+        think=True,  # Generate <think>...</think> text CoT
+        understanding_output=True,  # Text only output, no image generation
+        visual_gen=False,  # Model trained without image generation capability
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet_textcot/default")
+    ),
+    # MindCube - Multi-image spatial reasoning with visual CoT
+    "thinkmorph_mindcube": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/BAGEL-7B-MoT"),
+        think=True,  # Enable thinking/visual CoT
+        understanding_output=False,  # Generate images during thinking
+        temperature=0.3,
+        max_think_token_n=4096,
+        image_resolution=int(os.environ.get("THINKMORPH_IMAGE_RESOLUTION", 512)),
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mindcube/default")
+    ),
+    # All-Angles-Bench - Multi-view understanding with visual CoT
+    "thinkmorph_all_angles": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/models/BAGEL-7B-MoT"),
+        think=True,  # Enable thinking/visual CoT
+        understanding_output=False,  # Generate images during thinking
+        temperature=0.3,
+        max_think_token_n=4096,
+        image_resolution=int(os.environ.get("THINKMORPH_IMAGE_RESOLUTION", 512)),
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/all_angles/default")
     ),
 }
 

@@ -5,7 +5,7 @@
 set -e
 
 # Activate conda environment
-source ~/miniconda3/etc/profile.d/conda.sh
+source /weka/oe-training-default/jieyuz2/improve_segments/miniconda3/etc/profile.d/conda.sh
 conda activate thinkmorph_eval
 
 # Create output directories
@@ -17,15 +17,13 @@ echo "========================================"
 
 # Test: ThinkMorph PET (checkpoint 4940) -> SAT_circular (10 samples)
 echo ""
-echo "[1/1] ThinkMorph PET (ckpt 4940) -> SAT_circular"
+echo "[1/1] ThinkMorph PET (ckpt 4940) -> SAT_circular_10"
 echo "----------------------------------------"
 python run.py \
-  --data SAT_circular \
+  --data SAT_circular_10 \
   --model thinkmorph_pet \
   --work-dir ./outputs_sat_test \
-  --verbose \
-  --save_dir /weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/viz_outputs/thinkmorph_pet_4940_sat \
-  --num_samples 10
+  --verbose
 
 echo ""
 echo "========================================"
