@@ -8,6 +8,41 @@ from PIL import Image
 from .image_mcq import ImageMCQDataset
 
 
+import re
+
+
+def _score_mcq_prediction(pred, gt, item):
+    """Score a MCQ prediction against ground truth.
+    Handles both letter-based (A/B) and text-based ground truth."""
+    # Extract answer from <answer> tags if present
+    answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
+    if answer_match:
+        pred = answer_match.group(1)
+
+    pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+    gt_clean = gt.strip().upper()
+
+    # If gt is a letter, compare letters directly
+    if gt_clean in ['A', 'B', 'C', 'D']:
+        return 1 if pred_letter == gt_clean else 0
+
+    # Otherwise convert pred letter to text and compare
+    if pred_letter == 'A':
+        pred_answer = str(item.get('A', ''))
+    elif pred_letter == 'B':
+        pred_answer = str(item.get('B', ''))
+    elif pred_letter == 'C':
+        pred_answer = str(item.get('C', ''))
+    elif pred_letter == 'D':
+        pred_answer = str(item.get('D', ''))
+    else:
+        pred_answer = pred
+    hit = 1 if pred_answer.strip().upper() == gt_clean else 0
+    if hit == 0 and gt_clean in pred_answer.strip().upper():
+        hit = 1
+    return hit
+
+
 def pil_to_base64(pil_image, format='PNG'):
     """Convert PIL Image to base64 string."""
     buffer = io.BytesIO()
@@ -64,6 +99,29 @@ class AI2ThorPathTracing(ImageMCQDataset):
 
         return pd.DataFrame(records)
 
+    def evaluate(self, eval_file, **judge_kwargs):
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample using rule-based matching
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+                hit = _score_mcq_prediction(pred, gt, item)
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        overall_acc = data['hit'].mean() * 100
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        return pd.DataFrame(res)
+
 
 class AI2ThorPerspective_NoArrow(ImageMCQDataset):
     """
@@ -102,36 +160,13 @@ class AI2ThorPerspective_NoArrow(ImageMCQDataset):
 
         data = load(eval_file)
 
-        # Build judge for answer matching
-        judge_kwargs['model'] = judge_kwargs.get('model', 'exact_matching')
-
-        # Score each sample
+        # Score each sample using rule-based matching
         if 'hit' not in data.columns:
             for i in range(len(data)):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-
-                # Extract answer from <answer> tags if present
-                import re
-                answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
-                if answer_match:
-                    pred = answer_match.group(1)
-
-                # Convert predicted option letter (A/B) to actual answer text
-                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
-                if pred_letter == 'A':
-                    pred_answer = str(item.get('A', ''))
-                elif pred_letter == 'B':
-                    pred_answer = str(item.get('B', ''))
-                else:
-                    pred_answer = pred  # fallback to original prediction
-
-                # Simple exact matching for answers
-                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
-                # Also check if prediction contains the answer
-                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
-                    hit = 1
+                hit = _score_mcq_prediction(pred, gt, item)
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
 
@@ -241,25 +276,13 @@ class AI2ThorPerspective_Arrow(ImageMCQDataset):
 
         data = load(eval_file)
 
-        # Score each sample
+        # Score each sample using rule-based matching
         if 'hit' not in data.columns:
             for i in range(len(data)):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-
-                # Convert predicted option letter (A/B) to actual answer text
-                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
-                if pred_letter == 'A':
-                    pred_answer = str(item.get('A', ''))
-                elif pred_letter == 'B':
-                    pred_answer = str(item.get('B', ''))
-                else:
-                    pred_answer = pred  # fallback to original prediction
-
-                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
-                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
-                    hit = 1
+                hit = _score_mcq_prediction(pred, gt, item)
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
 
@@ -481,6 +504,45 @@ class AI2ThorMultiViewCounting(ImageMCQDataset):
 
         return pd.DataFrame(records)
 
+    def evaluate(self, eval_file, **judge_kwargs):
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample using rule-based matching
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+                hit = _score_mcq_prediction(pred, gt, item)
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        # Compute per-category accuracy
+        category_acc = {}
+        if 'category' in data.columns:
+            categories = data['category'].unique()
+            for cat in categories:
+                cat_data = data[data['category'] == cat]
+                acc = cat_data['hit'].mean() * 100
+                category_acc[cat] = acc
+
+        overall_acc = data['hit'].mean() * 100
+
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        for cat in sorted(category_acc.keys()):
+            res['Category'].append(cat)
+            res['Accuracy'].append(category_acc[cat])
+            cat_data = data[data['category'] == cat]
+            res['Count'].append(len(cat_data))
+
+        return pd.DataFrame(res)
+
 
 class AI2ThorMultiViewCounting_Square(AI2ThorMultiViewCounting):
     """Multi-View Counting - Square trajectory only (4 fixed camera positions)."""
@@ -580,33 +642,13 @@ class HabitatPerspective_NoArrow(ImageMCQDataset):
 
         data = load(eval_file)
 
-        # Score each sample
+        # Score each sample using rule-based matching
         if 'hit' not in data.columns:
             for i in range(len(data)):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-
-                # Extract answer from <answer> tags if present
-                import re
-                answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
-                if answer_match:
-                    pred = answer_match.group(1)
-
-                # Convert predicted option letter (A/B) to actual answer text
-                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
-                if pred_letter == 'A':
-                    pred_answer = str(item.get('A', ''))
-                elif pred_letter == 'B':
-                    pred_answer = str(item.get('B', ''))
-                else:
-                    pred_answer = pred  # fallback to original prediction
-
-                # Simple exact matching for answers
-                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
-                # Also check if prediction contains the answer
-                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
-                    hit = 1
+                hit = _score_mcq_prediction(pred, gt, item)
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
 
@@ -718,25 +760,13 @@ class HabitatPerspective_Arrow(ImageMCQDataset):
 
         data = load(eval_file)
 
-        # Score each sample
+        # Score each sample using rule-based matching
         if 'hit' not in data.columns:
             for i in range(len(data)):
                 item = data.iloc[i]
                 pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', ''))
-
-                # Convert predicted option letter (A/B) to actual answer text
-                pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
-                if pred_letter == 'A':
-                    pred_answer = str(item.get('A', ''))
-                elif pred_letter == 'B':
-                    pred_answer = str(item.get('B', ''))
-                else:
-                    pred_answer = pred  # fallback to original prediction
-
-                hit = 1 if pred_answer.strip().upper() == gt.strip().upper() else 0
-                if hit == 0 and gt.strip().upper() in pred_answer.strip().upper():
-                    hit = 1
+                hit = _score_mcq_prediction(pred, gt, item)
                 data.loc[data.index[i], 'hit'] = hit
             dump(data, result_file)
 
@@ -883,3 +913,215 @@ class HabitatPerspective_NoArrow_v2(HabitatPerspective_NoArrow):
                 })
 
         return pd.DataFrame(records)
+
+
+class AI2ThorMultiViewCounting_HumanVerified(AI2ThorMultiViewCounting):
+    """
+    AI2Thor Multi-View Counting Dataset (Human Verified Subset).
+    Source: MahtabBg/multiview_eval
+    260 human-verified samples, multi-image input (4-8 frames per sample).
+    4-choice MCQ (A/B/C/D).
+
+    Categories:
+    - multi_camera: samples with multiple fixed camera positions
+    - rotation: samples with rotation-based camera movement
+    """
+
+    TRAJECTORY_FILTER = None
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_HumanVerified', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        ImageMCQDataset.__init__(self, dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_HumanVerified']
+
+    def load_data(self, dataset):
+        from datasets import load_dataset
+        import re
+
+        hf_ds = load_dataset('MahtabBg/multiview_eval', split='train')
+
+        records = []
+        for idx, ex in enumerate(hf_ds):
+            if self.nsamples is not None and len(records) >= self.nsamples:
+                break
+
+            # Filter by trajectory type if specified
+            movement = ex.get('movement_type', '')
+            if self.TRAJECTORY_FILTER is not None:
+                if self.TRAJECTORY_FILTER not in movement.lower():
+                    continue
+
+            # Collect all non-None frames
+            frames = []
+            for i in range(8):
+                frame = ex.get(f'frame_{i}')
+                if frame is not None:
+                    frames.append(frame)
+
+            if len(frames) == 0:
+                continue
+
+            img_b64_list = [pil_to_base64(f) for f in frames]
+
+            question = ex['question']
+
+            choices = ['', '', '', '']
+            choice_pattern = r'([A-D])\)\s*(\d+)'
+            matches = re.findall(choice_pattern, question)
+            for letter, value in matches:
+                idx_choice = ord(letter) - ord('A')
+                if 0 <= idx_choice < 4:
+                    choices[idx_choice] = value
+
+            records.append({
+                'index': len(records),
+                'image': img_b64_list,
+                'question': question,
+                'A': choices[0],
+                'B': choices[1],
+                'C': choices[2],
+                'D': choices[3],
+                'answer': ex['answer'],
+                'category': movement,
+                'query_object': ex.get('query_object', ''),
+            })
+
+        return pd.DataFrame(records)
+
+
+class AI2ThorMultiViewCounting_HumanVerified_MultiCamera(AI2ThorMultiViewCounting_HumanVerified):
+    """Human Verified Multi-View Counting - Multi-camera only."""
+
+    TRAJECTORY_FILTER = 'multi_camera'
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_HumanVerified_MultiCamera', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        ImageMCQDataset.__init__(self, dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_HumanVerified_MultiCamera']
+
+
+class AI2ThorMultiViewCounting_HumanVerified_Rotation(AI2ThorMultiViewCounting_HumanVerified):
+    """Human Verified Multi-View Counting - Rotation only."""
+
+    TRAJECTORY_FILTER = 'rotation'
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_HumanVerified_Rotation', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        ImageMCQDataset.__init__(self, dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_HumanVerified_Rotation']
+
+
+class AI2ThorMultiViewCounting_HumanVerified_10(AI2ThorMultiViewCounting_HumanVerified):
+    """Quick test version with only 10 samples."""
+
+    def __init__(self, dataset='AI2ThorMultiViewCounting_HumanVerified_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['AI2ThorMultiViewCounting_HumanVerified_10']
+
+
+class MessyTableCounting(ImageMCQDataset):
+    """
+    MessyTable Multi-View Counting Evaluation Dataset.
+    Source: leo66666/messytable (test split, 1861 samples)
+    Multi-image input (2-7 views per sample).
+    4-choice MCQ (A/B/C/D) with integer answer choices.
+    """
+
+    TYPE = 'MCQ'
+
+    def __init__(self, dataset='MessyTableCounting', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        super().__init__(dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['MessyTableCounting']
+
+    def load_data(self, dataset):
+        import random as rng_module
+        from datasets import load_dataset
+
+        hf_ds = load_dataset('leo66666/messytable', split='test')
+
+        records = []
+        for idx, ex in enumerate(hf_ds):
+            if self.nsamples is not None and len(records) >= self.nsamples:
+                break
+
+            gt = ex['gt_answer']
+            question = ex['question'].strip()
+            images = ex['images']
+
+            if not images or gt is None or not question:
+                continue
+
+            # Generate 4 MCQ choices deterministically
+            rng = rng_module.Random(42 + idx)
+            pool = [x for x in range(max(1, gt - 3), min(8, gt + 3) + 1) if x != gt]
+            if len(pool) < 3:
+                pool = [x for x in range(1, 9) if x != gt]
+            distractors = rng.sample(pool, 3)
+            options = distractors + [gt]
+            rng.shuffle(options)
+            correct_letter = 'ABCD'[options.index(gt)]
+
+            img_b64_list = [pil_to_base64(img) for img in images]
+
+            records.append({
+                'index': len(records),
+                'image': img_b64_list,
+                'question': question,
+                'A': str(options[0]),
+                'B': str(options[1]),
+                'C': str(options[2]),
+                'D': str(options[3]),
+                'answer': correct_letter,
+            })
+
+        return pd.DataFrame(records)
+
+    def evaluate(self, eval_file, **judge_kwargs):
+        import numpy as np
+        from ..smp import load, dump
+
+        suffix = eval_file.split('.')[-1]
+        result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
+
+        data = load(eval_file)
+
+        # Score each sample using rule-based matching
+        if 'hit' not in data.columns:
+            for i in range(len(data)):
+                item = data.iloc[i]
+                pred = str(item.get('prediction', ''))
+                gt = str(item.get('answer', ''))
+                hit = _score_mcq_prediction(pred, gt, item)
+                data.loc[data.index[i], 'hit'] = hit
+            dump(data, result_file)
+
+        overall_acc = data['hit'].mean() * 100
+        res = {'Category': ['Overall'], 'Accuracy': [overall_acc], 'Count': [len(data)]}
+        return pd.DataFrame(res)
+
+
+class MessyTableCounting_10(MessyTableCounting):
+    """Quick test version of MessyTableCounting with only 10 samples."""
+
+    def __init__(self, dataset='MessyTableCounting_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['MessyTableCounting_10']

@@ -234,13 +234,13 @@ class InterleaveInferencer:
         cfg_img_context = deepcopy(gen_context)
 
         with torch.autocast(device_type="cuda", enabled=True, dtype=torch.bfloat16):
-            if think:
-                if understanding_output:
-                    system_prompt = VLM_THINK_SYSTEM_PROMPT 
-                else:
-                    system_prompt = GEN_THINK_SYSTEM_PROMPT
-                gen_context = self.update_context_text(system_prompt, gen_context)
-                cfg_img_context = self.update_context_text(system_prompt, cfg_img_context)
+            # Always add system prompt - all models are trained with it
+            if understanding_output:
+                system_prompt = VLM_THINK_SYSTEM_PROMPT
+            else:
+                system_prompt = GEN_THINK_SYSTEM_PROMPT
+            gen_context = self.update_context_text(system_prompt, gen_context)
+            cfg_img_context = self.update_context_text(system_prompt, cfg_img_context)
 
             for input_term in input_lists:
                 if isinstance(input_term, str):
