@@ -119,34 +119,12 @@ class AllAnglesBenchDataset(ImageMCQDataset):
 
         # Score each sample
         if 'hit' not in data.columns:
+            from .ai2thor_spatial import _score_mcq_prediction
             for i in range(len(data)):
                 item = data.iloc[i]
-                pred = str(item.get('prediction', '')).strip().upper()
+                pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', '')).strip().upper()
-
-                # Check exact match first
-                hit = 1 if pred == gt else 0
-
-                # Check for <answer>X</answer> format (ThinkMorph style)
-                if hit == 0:
-                    answer_match = re.search(r'<answer>([A-C])</answer>', pred)
-                    if answer_match and answer_match.group(1) == gt:
-                        hit = 1
-
-                # Check for "answer is X" or "answer: X" patterns
-                if hit == 0:
-                    answer_pattern = re.search(r'(?:answer|choice|option)\s*(?:is|:)?\s*([A-C])\b', pred, re.IGNORECASE)
-                    if answer_pattern and answer_pattern.group(1).upper() == gt:
-                        hit = 1
-
-                # Check for standalone letter at the end (e.g., "...so the answer is A" -> last letter)
-                if hit == 0:
-                    # Find last occurrence of A, B, or C as a word boundary
-                    last_letter = re.findall(r'\b([A-C])\b', pred)
-                    if last_letter and last_letter[-1] == gt:
-                        hit = 1
-
-                data.loc[data.index[i], 'hit'] = hit
+                data.loc[data.index[i], 'hit'] = _score_mcq_prediction(pred, gt, item)
             dump(data, result_file)
 
         # Compute per-category accuracy

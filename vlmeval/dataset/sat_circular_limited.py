@@ -46,8 +46,9 @@ class SATCircularLimited(ImageMCQDataset):
 
 
 def _sat_rule_based_evaluate(eval_file):
-    """Rule-based evaluation: extract answer from <answer> tags, no GPT judge needed."""
+    """Rule-based evaluation using unified lenient MCQ scoring."""
     from ..smp import load, dump
+    from .ai2thor_spatial import _score_mcq_prediction
 
     suffix = eval_file.split('.')[-1]
     data = load(eval_file)
@@ -56,14 +57,7 @@ def _sat_rule_based_evaluate(eval_file):
         item = data.iloc[i]
         pred = str(item.get('prediction', ''))
         gt = str(item.get('answer', '')).strip().upper()
-
-        m = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
-        if m:
-            letter = m.group(1).strip().upper().replace('.', '').replace(')', '')
-        else:
-            letter = ''
-
-        data.loc[data.index[i], 'hit'] = 1 if letter == gt else 0
+        data.loc[data.index[i], 'hit'] = _score_mcq_prediction(pred, gt, item)
 
     result_file = eval_file.replace(f'.{suffix}', f'_result.{suffix}')
     dump(data, result_file)

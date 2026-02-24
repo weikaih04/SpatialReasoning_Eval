@@ -163,22 +163,12 @@ class MindCubeDataset(ImageMCQDataset):
 
         # Score each sample
         if 'hit' not in data.columns:
+            from .ai2thor_spatial import _score_mcq_prediction
             for i in range(len(data)):
                 item = data.iloc[i]
-                pred = str(item.get('prediction', '')).strip().upper()
+                pred = str(item.get('prediction', ''))
                 gt = str(item.get('answer', '')).strip().upper()
-
-                # Check exact match first
-                hit = 1 if pred == gt else 0
-
-                # Check if prediction contains the answer letter
-                if hit == 0:
-                    # Extract first letter from prediction
-                    pred_match = re.search(r'\b([A-E])\b', pred)
-                    if pred_match and pred_match.group(1) == gt:
-                        hit = 1
-
-                data.loc[data.index[i], 'hit'] = hit
+                data.loc[data.index[i], 'hit'] = _score_mcq_prediction(pred, gt, item)
             dump(data, result_file)
 
         # Compute per-category accuracy

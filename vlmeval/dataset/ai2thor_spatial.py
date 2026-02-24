@@ -11,36 +11,89 @@ from .image_mcq import ImageMCQDataset
 import re
 
 
-def _score_mcq_prediction(pred, gt, item):
-    """Score a MCQ prediction against ground truth.
-    Handles both letter-based (A/B) and text-based ground truth."""
-    # Extract answer from <answer> tags if present
-    answer_match = re.search(r'<answer>\s*(.*?)\s*</answer>', pred, re.IGNORECASE)
-    if answer_match:
-        pred = answer_match.group(1)
+def _extract_letter(pred, valid_letters=None):
+    """Extract answer letter from prediction using conservative strategies.
 
-    pred_letter = pred.strip().upper().replace('.', '').replace(')', '')
+    Only extracts from unambiguous answer declarations — does NOT search
+    through the full reasoning trace for random letters (which inflates scores).
+
+    Strategies in order:
+    1. <answer>X</answer> tag
+    2. Broken tag: >X</answer> (truncated <answer prefix, non-EMA artifact)
+    3. "The answer is (X)" / "answer is X" explicit declaration
+    4. "answer: X" / "answer - X" explicit declaration
+    5. Bare single letter (entire prediction is just one letter, no reasoning)
+
+    Returns the extracted letter (uppercase) or None.
+    """
+    if valid_letters is None:
+        valid_letters = ['A', 'B', 'C', 'D', 'E']
+    pattern = '|'.join(valid_letters)
+
+    # 1. Proper <answer>X</answer> tag
+    m = re.search(r'<answer>\s*([A-E])\s*</answer>', pred, re.IGNORECASE)
+    if m and m.group(1).upper() in valid_letters:
+        return m.group(1).upper()
+
+    # 2. Broken tag: >X</answer> (missing '<answer' prefix, non-EMA checkpoint artifact)
+    m = re.match(r'\s*>?\s*([A-E])\s*(?:</answer>|$)', pred.split('\n')[-1], re.IGNORECASE)
+    if not m:
+        m = re.search(r'(?:^|\n)>([A-E])\b', pred, re.IGNORECASE)
+    if m and m.group(1).upper() in valid_letters:
+        return m.group(1).upper()
+
+    # 3. "answer is (X)" / "answer is X" — explicit final declaration
+    m = re.search(r'answer is\s*[\(\*]*(' + pattern + r')(?:[\)\*\s\.\n]|$)', pred, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+
+    # 4. "answer: X" or "answer - X"
+    m = re.search(r'answer\s*[:\-]\s*\(?(' + pattern + r')\)?', pred, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+
+    # 5. Bare single letter only (entire prediction = one letter, no reasoning trace)
+    stripped = pred.strip().upper().replace('.', '').replace(')', '').replace('(', '')
+    if stripped in valid_letters:
+        return stripped
+
+    return None
+
+
+def _score_mcq_prediction(pred, gt, item):
+    """Score a MCQ prediction against ground truth with lenient extraction.
+
+    Handles:
+    - Proper <answer>X</answer> tags
+    - Broken >X</answer> format (truncated token)
+    - "The answer is (X)" free-text format
+    - Letter-based GT (A/B/C/D) and text-based GT (e.g. 'Closer', 'left')
+    """
+    pred = str(pred)
     gt_clean = gt.strip().upper()
 
-    # If gt is a letter, compare letters directly
-    if gt_clean in ['A', 'B', 'C', 'D']:
-        return 1 if pred_letter == gt_clean else 0
+    # Determine valid letters from item keys
+    valid_letters = [k for k in ['A', 'B', 'C', 'D', 'E'] if k in item]
+    if not valid_letters:
+        valid_letters = ['A', 'B', 'C', 'D']
 
-    # Otherwise convert pred letter to text and compare
-    if pred_letter == 'A':
-        pred_answer = str(item.get('A', ''))
-    elif pred_letter == 'B':
-        pred_answer = str(item.get('B', ''))
-    elif pred_letter == 'C':
-        pred_answer = str(item.get('C', ''))
-    elif pred_letter == 'D':
-        pred_answer = str(item.get('D', ''))
+    letter = _extract_letter(pred, valid_letters)
+
+    # Letter-based GT: direct comparison
+    if gt_clean in valid_letters:
+        return 1 if letter == gt_clean else 0
+
+    # Text-based GT: map letter to choice text, then compare
+    if letter and letter in item:
+        pred_answer = str(item[letter]).strip().upper()
     else:
-        pred_answer = pred
-    hit = 1 if pred_answer.strip().upper() == gt_clean else 0
-    if hit == 0 and gt_clean in pred_answer.strip().upper():
-        hit = 1
-    return hit
+        pred_answer = (letter or pred).strip().upper()
+
+    if pred_answer == gt_clean:
+        return 1
+    if gt_clean in pred_answer:
+        return 1
+    return 0
 
 
 def pil_to_base64(pil_image, format='PNG'):
