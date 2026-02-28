@@ -369,6 +369,12 @@ def main():
                             judge_kwargs['model'] = 'gpt-4o-mini'
                         elif listinstr(['VisuLogic'], dataset_name):
                             judge_kwargs['model'] = 'exact_matching'
+                        elif listinstr([
+                            'AI2Thor', 'HabitatPerspective', 'SAT_perspective',
+                            'MindCube', 'AllAnglesBench',
+                        ], dataset_name):
+                            # These datasets use custom rule-based evaluate() that ignores judge_kwargs
+                            pass
                         else:
                             judge_kwargs['model'] = 'chatgpt-0125'
                     elif listinstr(['MMVet', 'LLaVABench', 'MMBench_Video'], dataset_name):

@@ -58,7 +58,7 @@ from .gobench import GOBenchDataset
 from .sfebench import SFE
 from .visfactor import VisFactor
 from .ai2thor_spatial import (
-    AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow, SideviewOverfit,
+    AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow,
     AI2ThorMultiViewCounting, AI2ThorMultiViewCounting_Square, AI2ThorMultiViewCounting_Rotation,
     AI2ThorMultiViewCounting_10, AI2ThorMultiViewCounting_Square_10, AI2ThorMultiViewCounting_Rotation_10,
     AI2ThorMultiViewCounting_HumanVerified,
@@ -247,7 +247,7 @@ IMAGE_DATASET = [
     MedqbenchPairedDescriptionDataset, MedqbenchCaptionDataset, ChartMuseum, ChartQAPro, ReasonMap_Plus,
     olmOCRBench, OceanOCRBench, MATBench, VLRMBench, RefCOCODataset, SimpleVQA, HiPhODataset, MaCBench,
     UniSVG, SArena_MINI,
-    AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow, SideviewOverfit,
+    AI2ThorPathTracing, AI2ThorPerspective_NoArrow, AI2ThorPerspective_Arrow,
     AI2ThorMultiViewCounting, AI2ThorMultiViewCounting_Square, AI2ThorMultiViewCounting_Rotation,
     AI2ThorMultiViewCounting_10, AI2ThorMultiViewCounting_Square_10, AI2ThorMultiViewCounting_Rotation_10,
     AI2ThorMultiViewCounting_HumanVerified,

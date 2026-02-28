@@ -196,15 +196,13 @@ class ThinkMorph(BaseModel):
 
 
     def use_custom_prompt(self, dataset):
-        """Use custom prompt for SAT perspective taking dataset and SideviewOverfit."""
+        """Use custom prompt for SAT perspective taking dataset."""
         if dataset is not None and 'SAT_perspective' in dataset:
-            return True
-        if dataset is not None and 'SideviewOverfit' in dataset:
             return True
         return False
 
     def build_prompt(self, line, dataset=None):
-        """Build custom prompt for SAT perspective taking dataset and SideviewOverfit."""
+        """Build custom prompt for SAT perspective taking dataset."""
         import string
         import pandas as pd
 
@@ -213,18 +211,6 @@ class ThinkMorph(BaseModel):
 
         tgt_path = self.dump_image(line, dataset)
         question = line['question']
-
-        # Special handling for SideviewOverfit - use original training instruction directly
-        if dataset is not None and 'SideviewOverfit' in dataset:
-            # The question already contains the full training instruction with system prompt
-            # Just use it directly without MCQ options
-            msgs = []
-            if isinstance(tgt_path, list):
-                msgs.extend([dict(type='image', value=p) for p in tgt_path])
-            else:
-                msgs = [dict(type='image', value=tgt_path)]
-            msgs.append(dict(type='text', value=question))
-            return msgs
 
         # Build prompt for SAT perspective taking
         # Get options
