@@ -898,6 +898,84 @@ class HabitatPerspective_NoArrow_v2(HabitatPerspective_NoArrow):
         return pd.DataFrame(records)
 
 
+class HabitatPerspective_NoArrow_HumanVerified(HabitatPerspective_NoArrow):
+    """
+    Habitat Perspective QA Dataset - Human Verified (No Arrow version).
+    Source: MahtabBg/habitat_perspective_eval
+    300 human-verified samples (50 per category, downsampled from 719 total).
+    Uses marked_image_no_arrow and question_no_arrow.
+    2-choice MCQ (A/B).
+
+    Categories (6 splits, 50 each):
+    - distance_closer
+    - distance_further
+    - position_left_left
+    - position_left_right
+    - position_right_left
+    - position_right_right
+
+    Overall is computed as unweighted average of 6 category accuracies.
+    """
+
+    SAMPLES_PER_CATEGORY = 50
+
+    def __init__(self, dataset='HabitatPerspective_NoArrow_HumanVerified', nsamples=None, **kwargs):
+        self.nsamples = nsamples
+        super(HabitatPerspective_NoArrow, self).__init__(dataset=dataset, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_NoArrow_HumanVerified']
+
+    def load_data(self, dataset):
+        import random
+        from datasets import load_dataset
+
+        hf_ds = load_dataset('MahtabBg/habitat_perspective_eval')
+
+        records = []
+        for split_name in sorted(hf_ds.keys()):
+            split_data = list(hf_ds[split_name])
+            n = min(self.SAMPLES_PER_CATEGORY, len(split_data))
+            random.seed(42)
+            sampled = random.sample(split_data, n)
+
+            for ex in sampled:
+                if self.nsamples is not None and len(records) >= self.nsamples:
+                    break
+
+                img_b64 = pil_to_base64(ex['marked_image_no_arrow'])
+
+                choices_raw = ex['answer_choices']
+                if isinstance(choices_raw, str):
+                    choices = json.loads(choices_raw)
+                else:
+                    choices = choices_raw
+
+                records.append({
+                    'index': len(records),
+                    'image': img_b64,
+                    'question': ex['question_no_arrow'],
+                    'A': choices[0] if len(choices) > 0 else '',
+                    'B': choices[1] if len(choices) > 1 else '',
+                    'answer': ex['answer'],
+                    'category': split_name,
+                })
+
+        return pd.DataFrame(records)
+
+
+class HabitatPerspective_NoArrow_HumanVerified_10(HabitatPerspective_NoArrow_HumanVerified):
+    """Quick test version with only 10 samples."""
+
+    def __init__(self, dataset='HabitatPerspective_NoArrow_HumanVerified_10', **kwargs):
+        super().__init__(dataset=dataset, nsamples=10, **kwargs)
+
+    @classmethod
+    def supported_datasets(cls):
+        return ['HabitatPerspective_NoArrow_HumanVerified_10']
+
+
 class AI2ThorMultiViewCounting_HumanVerified(AI2ThorMultiViewCounting):
     """
     AI2Thor Multi-View Counting Dataset (Human Verified Subset).
