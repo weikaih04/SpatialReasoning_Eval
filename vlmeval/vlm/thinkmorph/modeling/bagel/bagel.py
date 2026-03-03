@@ -938,9 +938,11 @@ class Bagel(PreTrainedModel):
         do_sample: bool = False,
         temperature: float = 1.0,
         end_token_id: int = None,
+        stop_token_sequences: list = None,
     ):
         step = 0
         generated_sequence = []
+        generated_ids = []
         curr_tokens = packed_start_tokens
         while step < max_length:
             generated_sequence.append(curr_tokens)
@@ -995,6 +997,17 @@ class Bagel(PreTrainedModel):
 
             if end_token_id is not None and curr_tokens[0] == end_token_id: # only support batch=1
                 break
+
+            if stop_token_sequences is not None:
+                generated_ids.append(curr_tokens[0].item())
+                stop = False
+                for seq in stop_token_sequences:
+                    if len(generated_ids) >= len(seq) and generated_ids[-len(seq):] == seq:
+                        stop = True
+                        break
+                if stop:
+                    generated_sequence.append(curr_tokens)
+                    break
 
         output_device = generated_sequence[0].device
         return torch.stack([i.to(output_device) for i in generated_sequence], dim=0)

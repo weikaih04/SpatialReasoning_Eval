@@ -196,7 +196,11 @@ class ThinkMorph(BaseModel):
 
 
     def use_custom_prompt(self, dataset):
-        """Use custom prompt for SAT perspective taking dataset."""
+        """Use custom prompt for SAT perspective taking dataset.
+        Disabled in answer-only mode (think=False) to avoid conflicting instructions.
+        """
+        if self.understanding_output and not self.think:
+            return False
         if dataset is not None and 'SAT_perspective' in dataset:
             return True
         return False

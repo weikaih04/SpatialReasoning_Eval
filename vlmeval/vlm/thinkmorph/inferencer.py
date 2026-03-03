@@ -20,6 +20,10 @@ GEN_THINK_SYSTEM_PROMPT = '''
 Let's think step by step to answer the question. For text-based thinking, enclose the process within <think> </think>, e.g. <think> thinking process here </think>. For visual thinking, enclose the content within <image_start> </image_end>, e.g. <image_start> thinking image here </image_end>. Finally conclude with the final answer wrapped in <answer></answer> tags, i.e.<answer> answer here </answer>.
 '''
 
+ANSWER_ONLY_SYSTEM_PROMPT = '''
+Answer the question directly. Wrap your answer in <answer></answer> tags, i.e. <answer> answer here </answer>. Do not think or generate any images.
+'''
+
 
 class InterleaveInferencer:
     def __init__(self, model, vae_model, tokenizer, vae_transform, vit_transform, new_token_ids):
@@ -193,6 +197,11 @@ class InterleaveInferencer:
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
 
+        # Stop on '</answer' prefix [522, 9217] since BPE merges '>' with next char
+        # (e.g. '>B' -> token 36721), making full '</answer>' [522,9217,29] unmatchable mid-repetition
+        answer_ids = self.tokenizer.encode('</answer>')
+        stop_token_sequences = [answer_ids[:2]]  # ['</', 'answer'] is stable regardless of context
+
         generation_input = self.model.prepare_start_tokens(kv_lens, ropes, self.new_token_ids)
         unpacked_latent = self.model.generate_text(
             past_key_values=past_key_values,
@@ -200,10 +209,18 @@ class InterleaveInferencer:
             do_sample=do_sample,
             temperature=temperature,
             end_token_id=self.new_token_ids['eos_token_id'],
+            stop_token_sequences=stop_token_sequences,
             **generation_input,
         )
         output = self.tokenizer.decode(unpacked_latent[:,0])
         output = output.split('<|im_end|>')[0].split('<|im_start|>')[1]
+        # Truncate at first </answer> (or incomplete </answer due to early stop)
+        for stop_str in ['</answer>', '</answer']:
+            if stop_str in output:
+                output = output[:output.index(stop_str) + len(stop_str)]
+                if not output.endswith('>'):
+                    output += '>'
+                break
         return output
         
     @torch.no_grad()
@@ -234,8 +251,10 @@ class InterleaveInferencer:
         cfg_img_context = deepcopy(gen_context)
 
         with torch.autocast(device_type="cuda", enabled=True, dtype=torch.bfloat16):
-            # Always add system prompt - all models are trained with it
-            if understanding_output:
+            # Select system prompt based on mode
+            if understanding_output and not think:
+                system_prompt = ANSWER_ONLY_SYSTEM_PROMPT
+            elif understanding_output:
                 system_prompt = VLM_THINK_SYSTEM_PROMPT
             else:
                 system_prompt = GEN_THINK_SYSTEM_PROMPT
