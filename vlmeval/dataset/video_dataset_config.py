@@ -210,6 +210,13 @@ dream_1k_dataset = {
 ai2thor_dataset = {
     'AI2ThorPathTracing_10': partial(AI2ThorPathTracing, dataset='AI2ThorPathTracing', nsamples=10),
     'AI2ThorPerspective_NoArrow_10': partial(AI2ThorPerspective_NoArrow, dataset='AI2ThorPerspective_NoArrow', nsamples=10),
+    # Path Tracing 2-Point V2 (debiased)
+    'AI2ThorPT2PV2_td_ego_dir': partial(AI2ThorPathTracing2PointV2, dataset='AI2ThorPT2PV2_td_ego_dir', subset='td_ego_dir', use_sideview=False),
+    'AI2ThorPT2PV2_td_path': partial(AI2ThorPathTracing2PointV2, dataset='AI2ThorPT2PV2_td_path', subset='td_path', use_sideview=False),
+    'AI2ThorPT2PV2_td_path_arrow': partial(AI2ThorPathTracing2PointV2, dataset='AI2ThorPT2PV2_td_path_arrow', subset='td_path_arrow', use_sideview=False),
+    # Real Indoor Path Tracing
+    'RealPT_td_path': partial(RealPathTracing, dataset='RealPT_td_path', subset='td_path'),
+    'RealPT_td_path_arrow': partial(RealPathTracing, dataset='RealPT_td_path_arrow', subset='td_path_arrow'),
 }
 
 # SAT Circular dataset with sample limits

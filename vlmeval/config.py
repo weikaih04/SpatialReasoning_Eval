@@ -311,7 +311,8 @@ api_models = {
         Gemini, model="gemini-2.0-flash-lite", temperature=0, retry=10
     ),
     "GeminiFlash2-5": partial(
-        Gemini, model="gemini-2.5-flash", temperature=0, retry=10
+        Gemini, model="gemini-2.5-flash", temperature=0, retry=10, thinking_budget=0,
+        system_prompt="Answer with the option letter only."
     ),
     "GeminiPro2-5": partial(
         Gemini, model="gemini-2.5-pro", temperature=0, retry=10
@@ -1167,14 +1168,11 @@ qwen3vl_series = {
     "Qwen3-VL-8B-Instruct": partial(
         Qwen3VLChat,
         model_path="Qwen/Qwen3-VL-8B-Instruct",
-        use_custom_prompt=False,
-        use_vllm=True,
-        temperature=0.7, 
-        max_new_tokens=16384,
+        use_custom_prompt=True,
+        use_vllm=False,
+        temperature=0.01,
+        max_new_tokens=2048,
         repetition_penalty=1.0,
-        presence_penalty=1.5,
-        top_p=0.8,
-        top_k=20
     ),
     "Qwen3-VL-4B-Instruct": partial(
         Qwen3VLChat,
@@ -1486,6 +1484,39 @@ thinkmorph_series = {
         max_think_token_n=4096,
         image_resolution=int(os.environ.get("THINKMORPH_IMAGE_RESOLUTION", 1024)),
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc/default")
+    ),
+    # Multi-View Counting NO THOUGHT baseline - text only, no image generation
+    "thinkmorph_mvc_no_thought": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mvc_no_thought/run_8gpu/0010000_full_nonema"),
+        think=False,
+        understanding_output=True,
+        visual_gen=False,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc_no_thought/default")
+    ),
+    # MVC Answer-Only with visual_gen=True (for mixed-trained models that need VAE pathway)
+    "thinkmorph_mvc_answeronly": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mvc_mixed_answeronly/run_8gpu/0001000_full_nonema"),
+        think=False,
+        understanding_output=True,
+        visual_gen=True,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc_mixed_answeronly/default")
+    ),
+    # PET Answer-Only with visual_gen=True (for mixed-trained models that need VAE pathway)
+    "thinkmorph_pet_answeronly": partial(
+        ThinkMorph,
+        model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pet_mixed_answeronly/run_8gpu/0001000_full_nonema"),
+        think=False,
+        understanding_output=True,
+        visual_gen=True,
+        temperature=0.3,
+        max_think_token_n=4096,
+        save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet_mixed_answeronly/default")
     ),
     # Perspective Taking NO THOUGHT baseline - text only, no image generation
     "thinkmorph_pet_no_thought": partial(

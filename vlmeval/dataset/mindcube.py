@@ -37,6 +37,27 @@ def bytes_to_base64(img_bytes):
     return base64.b64encode(img_bytes).decode('utf-8')
 
 
+def parse_options_from_question(question):
+    """Parse option letters and text from question string.
+
+    Handles option text containing capital A-E letters (e.g., "Directly", "Above").
+
+    Args:
+        question: Question string with inline options like "A. xxx B. yyy C. zzz"
+
+    Returns:
+        dict mapping letter -> option text, e.g. {'A': 'Directly left', 'B': 'Forward'}
+    """
+    choices = {}
+    markers = list(re.finditer(r'(?:^|\s)([A-E])\.\s', question))
+    for i, m in enumerate(markers):
+        letter = m.group(1)
+        start = m.end()
+        end = markers[i + 1].start() if i + 1 < len(markers) else len(question)
+        choices[letter] = question[start:end].strip()
+    return choices
+
+
 def extract_answer_from_question(question, answer_key):
     """Extract answer text from question options.
 
@@ -47,12 +68,9 @@ def extract_answer_from_question(question, answer_key):
     Returns:
         Full answer text like "A. xxx"
     """
-    # Pattern to match options like "A. Above" or "A) Above"
-    pattern = r'([A-E])[.\)]\s*([^A-E]+?)(?=\s*[A-E][.\)]|$)'
-    matches = re.findall(pattern, question)
-    for letter, text in matches:
-        if letter == answer_key:
-            return f"{letter}. {text.strip()}"
+    choices = parse_options_from_question(question)
+    if answer_key in choices:
+        return f"{answer_key}. {choices[answer_key]}"
     return answer_key
 
 
@@ -124,23 +142,18 @@ class MindCubeDataset(ImageMCQDataset):
             question = sample['question']
             gt_answer = sample['gt_answer']
 
-            # Extract choices from question text
-            # Pattern: A. xxx B. yyy C. zzz D. www E. vvv
-            choices = {'A': '', 'B': '', 'C': '', 'D': '', 'E': ''}
-            choice_pattern = r'([A-E])[.\)]\s*([^A-E]+?)(?=\s*[A-E][.\)]|$)'
-            matches = re.findall(choice_pattern, question)
-            for letter, text in matches:
-                choices[letter] = text.strip()
+            # Extract choices from question text using position-based parser
+            choices = parse_options_from_question(question)
 
             records.append({
                 'index': idx,
                 'image': img_b64_list,  # Multi-image as list
                 'question': question,
-                'A': choices['A'],
-                'B': choices['B'],
-                'C': choices['C'],
-                'D': choices['D'],
-                'E': choices['E'],
+                'A': choices.get('A', ''),
+                'B': choices.get('B', ''),
+                'C': choices.get('C', ''),
+                'D': choices.get('D', ''),
+                'E': choices.get('E', ''),
                 'answer': gt_answer,
                 'category': setting,  # Use setting as category for metrics
                 'sample_id': sample['id'],
@@ -279,22 +292,18 @@ class MindCube_Tiny_200(MindCubeDataset):
             question = sample['question']
             gt_answer = sample['gt_answer']
 
-            # Extract choices
-            choices = {'A': '', 'B': '', 'C': '', 'D': '', 'E': ''}
-            choice_pattern = r'([A-E])[.\)]\s*([^A-E]+?)(?=\s*[A-E][.\)]|$)'
-            matches = re.findall(choice_pattern, question)
-            for letter, text in matches:
-                choices[letter] = text.strip()
+            # Extract choices using position-based parser
+            choices = parse_options_from_question(question)
 
             records.append({
                 'index': idx,
                 'image': img_b64_list,
                 'question': question,
-                'A': choices['A'],
-                'B': choices['B'],
-                'C': choices['C'],
-                'D': choices['D'],
-                'E': choices['E'],
+                'A': choices.get('A', ''),
+                'B': choices.get('B', ''),
+                'C': choices.get('C', ''),
+                'D': choices.get('D', ''),
+                'E': choices.get('E', ''),
                 'answer': gt_answer,
                 'category': setting,
                 'sample_id': sample['id'],

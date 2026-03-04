@@ -70,7 +70,10 @@ from .ai2thor_spatial import (
     HabitatPerspective_NoArrow_v2,
     HabitatPerspective_NoArrow_HumanVerified,
     HabitatPerspective_NoArrow_HumanVerified_10,
-    MessyTableCounting, MessyTableCounting_10,
+    MessyTableCounting, MessyTableCounting_200, MessyTableCounting_10,
+    AI2ThorPathTracing2Point,
+    AI2ThorPathTracing2PointV2,
+    RealPathTracing,
 )
 from .sat_circular_limited import SATCircularLimited, SATPerspectiveTaking
 from .mindcube import MindCubeDataset, MindCube_Tiny_200
@@ -264,7 +267,10 @@ IMAGE_DATASET = [
     SATCircularLimited, SATPerspectiveTaking,
     MindCubeDataset, MindCube_Tiny_200,
     AllAnglesBenchDataset, AllAnglesBench_EgoHumans, AllAnglesBench_Full,
-    MessyTableCounting, MessyTableCounting_10,
+    MessyTableCounting, MessyTableCounting_200, MessyTableCounting_10,
+    AI2ThorPathTracing2Point,
+    AI2ThorPathTracing2PointV2,
+    RealPathTracing,
 ]
 
 VIDEO_DATASET = [

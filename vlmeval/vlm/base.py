@@ -114,7 +114,13 @@ class BaseModel:
         assert message is not None and self.check_content(message) == 'listdict'
         for item in message:
             assert item['type'] in self.allowed_types, f'Invalid input type: {item["type"]}'
-        return self.generate_inner(message, dataset, sample_index=sample_index)
+        import inspect
+        sig = inspect.signature(self.generate_inner)
+        if 'sample_index' in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        ):
+            return self.generate_inner(message, dataset, sample_index=sample_index)
+        return self.generate_inner(message, dataset)
 
     def chat(self, messages, dataset=None):
         """The main function for multi-turn chatting. Will call `chat_inner` with the preprocessed input messages."""
