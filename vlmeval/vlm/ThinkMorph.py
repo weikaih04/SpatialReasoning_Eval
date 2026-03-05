@@ -28,8 +28,24 @@ class ThinkMorph(BaseModel):
     INSTALL_REQ = False
     INTERLEAVE = True
 
-    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, num_timesteps=50, image_resolution=1024, visual_gen=True, **kwargs):
-        # self.check_install()
+    def __init__(self, model_path='ThinkMorph/ThinkMorph-7B', think=True, understanding_output=True, save_dir=None, temperature=0.3, max_think_token_n=4096, num_timesteps=50, image_resolution=1024, visual_gen=True, vae_input=None, **kwargs):
+        """
+        Args:
+            think: Allow <think> reasoning in output.
+            understanding_output: Text-only output mode (single generation, no image loop).
+            visual_gen: Load VAE weights. Must be True if model was trained with visual generation.
+            vae_input: Whether input images go through VAE encoding (in addition to ViT).
+                - None (default): auto — VAE when understanding_output=False, no VAE otherwise
+                - True: force VAE for input images. Required for models trained with mixed
+                  VCoT + answer-only data, where training always used VAE+ViT for inputs.
+                - False: skip VAE for input images
+
+        Common configurations:
+            Visual CoT eval:       think=True,  understanding_output=False, visual_gen=True
+            Text CoT eval:         think=True,  understanding_output=True,  visual_gen=False
+            No Thought eval:       think=False, understanding_output=True,  visual_gen=False
+            Answer-Only eval:      think=False, understanding_output=True,  visual_gen=True, vae_input=True
+        """
         assert model_path is not None
         if not understanding_output:
             assert save_dir is not None
@@ -37,6 +53,7 @@ class ThinkMorph(BaseModel):
         self.understanding_output = understanding_output
         self.save_dir = save_dir
         self.think = think
+        self.vae_input = vae_input
         self.temperature = temperature
         self.max_think_token_n = max_think_token_n
         self.num_timesteps = num_timesteps
@@ -283,7 +300,7 @@ class ThinkMorph(BaseModel):
 
         if self.understanding_output:
             output_dict = self.inferencer(input_list=input_list, think=self.think,
-                                        understanding_output=True, **self.inference_hyper)
+                                        understanding_output=True, vae_input=self.vae_input, **self.inference_hyper)
             final_output = output_dict[0]
 
         else:

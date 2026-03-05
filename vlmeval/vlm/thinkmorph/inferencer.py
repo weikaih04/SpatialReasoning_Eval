@@ -229,6 +229,7 @@ class InterleaveInferencer:
         input_lists: List[Union[str, Image.Image]],
         think=False,
         understanding_output=False,
+        vae_input=None,
 
         max_think_token_n=1000,
         do_sample=False,
@@ -244,6 +245,26 @@ class InterleaveInferencer:
         enable_taylorseer=False,
         max_rounds:int=3,
     ) -> List[Union[str, Image.Image]]:
+        """
+        Interleaved text-image inference.
+
+        Args:
+            think: Whether to allow <think> reasoning. Controls inference loop behavior.
+            understanding_output: Whether this is an understanding (text-only output) task.
+                - True: single text generation, no image generation loop
+                - False: enters while loop, can generate interleaved text + images
+            vae_input: Whether input images go through VAE encoding (in addition to ViT).
+                - None (default): follows understanding_output (True -> no VAE, False -> VAE)
+                - True: force VAE encoding for input images. Use this when the model was
+                  trained with VAE+ViT input (e.g. mixed VCoT + answer-only training) but
+                  you want understanding_output=True for text-only inference.
+                - False: skip VAE encoding for input images
+
+        System prompt selection:
+            - understanding_output=True, think=False  -> ANSWER_ONLY_SYSTEM_PROMPT
+            - understanding_output=True, think=True   -> VLM_THINK_SYSTEM_PROMPT
+            - understanding_output=False              -> GEN_THINK_SYSTEM_PROMPT
+        """
 
         output_list = []
         gen_context = self.init_gen_context()
@@ -269,7 +290,12 @@ class InterleaveInferencer:
 
                 elif isinstance(input_term, Image.Image):
                     input_term = self.vae_transform.resize_transform(pil_img2rgb(input_term))
-                    gen_context = self.update_context_image(input_term, gen_context, vae=not understanding_output)
+                    # Determine whether input images go through VAE encoding:
+                    # - vae_input=True: force VAE (match training with visual_gen=True)
+                    # - vae_input=False: skip VAE
+                    # - vae_input=None: default behavior (VAE only when understanding_output=False)
+                    use_vae = vae_input if vae_input is not None else (not understanding_output)
+                    gen_context = self.update_context_image(input_term, gen_context, vae=use_vae)
 
                     image_shapes = input_term.size[::-1]
                     cfg_text_context = deepcopy(gen_context)

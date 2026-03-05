@@ -1496,24 +1496,26 @@ thinkmorph_series = {
         max_think_token_n=4096,
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc_no_thought/default")
     ),
-    # MVC Answer-Only with visual_gen=True (for mixed-trained models that need VAE pathway)
+    # MVC Answer-Only with visual_gen=True and vae_input=True (for mixed-trained models that need VAE pathway for input images)
     "thinkmorph_mvc_answeronly": partial(
         ThinkMorph,
         model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/mvc_mixed_answeronly/run_8gpu/0001000_full_nonema"),
         think=False,
         understanding_output=True,
         visual_gen=True,
+        vae_input=True,
         temperature=0.3,
         max_think_token_n=4096,
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/mvc_mixed_answeronly/default")
     ),
-    # PET Answer-Only with visual_gen=True (for mixed-trained models that need VAE pathway)
+    # PET Answer-Only with visual_gen=True and vae_input=True (for mixed-trained models that need VAE pathway for input images)
     "thinkmorph_pet_answeronly": partial(
         ThinkMorph,
         model_path=os.environ.get("THINKMORPH_MODEL_PATH", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/ckpt/pet_mixed_answeronly/run_8gpu/0001000_full_nonema"),
         think=False,
         understanding_output=True,
         visual_gen=True,
+        vae_input=True,
         temperature=0.3,
         max_think_token_n=4096,
         save_dir=os.environ.get("THINKMORPH_SAVE_DIR", "/weka/oe-training-default/jieyuz2/improve_segments/visual_cot/ThinkMorph_training/results/pet_mixed_answeronly/default")
